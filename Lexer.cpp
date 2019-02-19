@@ -23,19 +23,35 @@ struct token {
 	string name;
 };
 
+//Adds one character to a string and advances the file character. For reading strings/symbols
+char addCharacter(FILE *file, string name) {
+	char characterToAdd = getc(file);
+	name.push_back(characterToAdd);
+	return characterToAdd;
+}
+
+//Removes a character from a string and pushes back the file character.
+void removeCharacter(FILE *file, string name, char current) {
+	ungetc(current, file);
+	name.pop_back();
+}
+
 //Scanner Method
 token ScanOneToken(FILE *file)
 {
 	//Load in the character
+	token outToken;
+	string tokenName;
 	char currentChar = getc(file);
 	char nextChar;
-	token outToken;
 
 	//Skip whitespace
 	while (isspace(currentChar))
 	{
 		currentChar = getc(file);
 	}
+
+	outToken.name.push_back(currentChar);
 
 	switch (currentChar)
 	{
@@ -82,6 +98,7 @@ token ScanOneToken(FILE *file)
 		if (nextChar == '=')
 		{
 			outToken.type = NOTEQUAL;
+			outToken.name.push_back(nextChar);
 		}
 		//Else, recognize as NOT logic
 		else
@@ -96,6 +113,7 @@ token ScanOneToken(FILE *file)
 		if (nextChar == '=')
 		{
 			outToken.type = GREATERTHANEQUAL;
+			outToken.name.push_back(nextChar);
 		}
 		//Else, recognize as normal GREATERTHAN
 		else
@@ -110,6 +128,7 @@ token ScanOneToken(FILE *file)
 		if (nextChar == '=')
 		{
 			outToken.type = LESSTHANEQAL;
+			outToken.name.push_back(nextChar);
 		}
 		//Else, recognize as normal LESSTHAN
 		else
@@ -124,6 +143,7 @@ token ScanOneToken(FILE *file)
 		if (nextChar == '=')
 		{
 			outToken.type = ASSIGN;
+			outToken.name.push_back(nextChar);
 		}
 		//Else, recognize as COLON
 		else
@@ -138,6 +158,7 @@ token ScanOneToken(FILE *file)
 		if (nextChar == '=')
 		{
 			outToken.type = EQUAL;
+			outToken.name.push_back(nextChar);
 		}
 		//Else, '=' is not in this language so return UNKNOWN
 		else
@@ -152,6 +173,7 @@ token ScanOneToken(FILE *file)
 		do
 		{
 			currentChar = getc(file);
+			outToken.name.push_back(currentChar);
 		} while (currentChar != '\'');
 		outToken.type = STRING;
 		break;
@@ -161,11 +183,13 @@ token ScanOneToken(FILE *file)
 		do
 		{
 			currentChar = getc(file);
+			outToken.name.push_back(currentChar);
 		} while (currentChar != '"');
 		outToken.type = STRING;
 		break;
 	case EOF:
 		outToken.type = ENDFILE;
+		outToken.name = "EOF";
 		break;
 	default:
 		outToken.type = UNKNOWN;
@@ -181,6 +205,7 @@ token ScanOneToken(FILE *file)
 		{
 			word += currentChar;
 			currentChar = getc(file);
+			outToken.name.push_back(currentChar);
 		}
 		//Check if reserved word (EDIT: USE A LIST LOOKUP OR SYMBOL TABLE RATHER THAN THIS CRAPPY ALGORITHM)
 		for (int i = 0; i < sizeof(reservedWords); i++)
@@ -197,6 +222,7 @@ token ScanOneToken(FILE *file)
 			outToken.type = IDENTIFIER;
 		}
 		ungetc(currentChar, file);
+		outToken.name.pop_back();
 	}
 	//Number case
 	else if (currentChar >= '0' & currentChar <= '9')
@@ -205,6 +231,7 @@ token ScanOneToken(FILE *file)
 		while (currentChar >= '0' & currentChar <= '9')
 		{
 			currentChar = getc(file);
+			outToken.name.push_back(currentChar);
 		}
 		//If a decimal is encountered, recognize as float (NOTE: ADD double TYPE)
 		if (currentChar == '.')
@@ -212,6 +239,7 @@ token ScanOneToken(FILE *file)
 			do
 			{
 				currentChar = getc(file);
+				outToken.name.push_back(currentChar);
 			} while (currentChar >= '0' & currentChar <= '9');
 			outToken.type = FLOATVAL;
 		}
@@ -221,6 +249,7 @@ token ScanOneToken(FILE *file)
 			outToken.type = INTVAL;
 		}
 		ungetc(currentChar, file);
+		outToken.name.pop_back();
 	}
 
 	return outToken;
