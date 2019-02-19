@@ -1,6 +1,6 @@
 /*EECE6083: LEXER
  * Programmer: David Luria
- * Date updated: 2/3/2019
+ * Date updated: 2/19/2019
  */
 
 #include <iostream>
@@ -13,7 +13,7 @@ using namespace std;
 enum tokenType {
 	SEMICOLON = ';', LPAREN = '(', RPAREN = ')', COLON = ':', PLUS = '+', MINUS = '-', STAR = '*', SLASH = '/', LBRACKET = '[', RBRACKET = ']', LBRACE = '{', RBRACE = '}', OR = '|', AND = '&', NOT = '!', COMMA = ',', MODULUS = '%',
 	LESSTHAN = '<', GREATERTHAN = '>', SINGLEQUOTE = '\'', DOUBLEQUOTE = '"', PERIOD = '.', ASSIGN = 257, EQUAL, LESSTHANEQAL, GREATERTHANEQUAL, NOTEQUAL, RETURN, WHILE, IF, THEN, ELSE, FOR, PROGRAM, BEGIN, END, IN, OUT, GLOBAL,
-	IS, TRUE, FALSE, PROCEDURE, INTEGER, FLOAT, IDENTIFIER, INTVAL, FLOATVAL, STRING, UNKNOWN, ENDFILE
+	IS, TRUE, FALSE, PROCEDURE, INTEGER, FLOAT, CHAR, STRING, IDENTIFIER, INTVAL, FLOATVAL, STRINGVAL, UNKNOWN, ENDFILE
 };
 
 //Token structure
@@ -24,7 +24,7 @@ struct token {
 
 //Symbol Table
 list<token> symbolTable = { {RETURN, "return"}, {WHILE, "while"} , {IF, "if"} , {THEN, "then"} , {ELSE, "else"} , {FOR, "for"} , {PROGRAM, "program"} , {BEGIN, "begin"} ,
-{END, "end"} , {IN, "in"} , {OUT, "out"} , {GLOBAL, "global"} , {IS, "is"} , {TRUE, "true"} , {FALSE, "false"} , {PROCEDURE, "procedure"} , {FLOAT, "float"} };
+{END, "end"} , {IN, "in"} , {OUT, "out"} , {GLOBAL, "global"} , {IS, "is"} , {TRUE, "true"} , {FALSE, "false"} , {PROCEDURE, "procedure"} , {INTEGER, "integer"}, {FLOAT, "float"}, {CHAR, "char"}, {STRING, "string"} };
 
 //Scanner Method
 token ScanOneToken(FILE *file)
@@ -41,11 +41,8 @@ token ScanOneToken(FILE *file)
 		currentChar = getc(file);
 	}
 
-	outToken.name.push_back(currentChar);
-
-	switch (currentChar)
-	{
-	case '/':
+	//Skip comments
+	if (currentChar == '/') {
 		//Check next char
 		nextChar = getc(file);
 		//See if in-line comment
@@ -56,30 +53,43 @@ token ScanOneToken(FILE *file)
 			{
 				currentChar = getc(file);
 			}
+			//Skip remaining whitespace
+			while (isspace(currentChar)) {
+				currentChar = getc(file);
+			}
 		}
 		//See if multi-line comment
-		if (nextChar == '*')
+		else if (nextChar == '*')
 		{
 			//Skip until comment end (*/)
-			do
+			while ((currentChar != '*') | (nextChar != '/'))
 			{
 				currentChar = getc(file);
 				if (currentChar == '*')
 				{
 					nextChar = getc(file);
 				}
-			} while ((currentChar != '*') | (nextChar != '/'));
+			} 
+			currentChar = getc(file);
+			//Skip remaining whitespace
+			while (isspace(currentChar)) {
+				currentChar = getc(file);
+			}
 		}
-		//Otherwise, recognize as divide operator
+		//Otherwise, put the nextChar back
 		else
 		{
 			//ANYTIME nextchar is used, finish with ungetc if the next character is not needed
 			ungetc(nextChar, file);
-			outToken.type = static_cast<tokenType>(currentChar);
 		}
-		break;
+	}
+
+	outToken.name.push_back(currentChar);
+
+	switch (currentChar)
+	{
 	//Regular single character tokens
-	case ';' : case '(': case ')': case '+': case '*': case '[': case ']': case '{': case '}': case '|': case '&': case ',': case '%': case '.': case '-':
+	case ';' : case '(': case ')': case '+': case '*': case '/': case '[': case ']': case '{': case '}': case '|': case '&': case ',': case '%': case '.': case '-':
 		outToken.type = static_cast<tokenType>(currentChar);
 		break;
 	case '!':
@@ -165,7 +175,7 @@ token ScanOneToken(FILE *file)
 			currentChar = getc(file);
 			outToken.name.push_back(currentChar);
 		} while (currentChar != '\'');
-		outToken.type = STRING;
+		outToken.type = STRINGVAL;
 		break;
 	//Double quote string case
 	case '"':
@@ -175,7 +185,7 @@ token ScanOneToken(FILE *file)
 			currentChar = getc(file);
 			outToken.name.push_back(currentChar);
 		} while (currentChar != '"');
-		outToken.type = STRING;
+		outToken.type = STRINGVAL;
 		break;
 	case EOF:
 		outToken.type = ENDFILE;
@@ -183,13 +193,11 @@ token ScanOneToken(FILE *file)
 		break;
 	default:
 		outToken.type = UNKNOWN;
-		//outToken.name = "ERROR: UNKNOWN TOKEN: " + outToken.name;
 		break;
 	}
 	//Identifier/Reserved word case
 	if (((currentChar >= 'A') & (currentChar <= 'Z')) | ((currentChar >= 'a') & (currentChar <= 'z')) | (currentChar == '_'))
 	{
-		//std::string word;
 		bool inSymTable = false;
 		//Keep scanning a-zA-Z0-9_
 		while ((currentChar >= 'A' & currentChar <= 'Z') | (currentChar >= 'a' & currentChar <= 'z') | currentChar == '_' | (currentChar <= '0' & currentChar >= '9'))
@@ -254,7 +262,7 @@ int main()
 	//Initialization
 	cout << "begin" << endl;
 	token currentToken = { BEGIN, "test" };
-	FILE* programFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\iterativeFib.src", "r");
+	FILE* programFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\incorrect\\parser\\badSource.src", "r");
 	//Keep scanning until EOF
 	while(currentToken.type != ENDFILE)
 	{
@@ -266,6 +274,9 @@ int main()
 		}
 		currentToken = ScanOneToken(programFile);
 		cout << currentToken.type << "  " << currentToken.name << endl;
+		if (currentToken.type == UNKNOWN) {
+			cout << "ERROR: UNKNOWN TOKEN: " + currentToken.name << endl;
+		}
 	}
 	//List symbols for debugging
 	cout << endl << "Symbols (name: type): ";
