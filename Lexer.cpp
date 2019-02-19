@@ -4,7 +4,7 @@
  */
 
 #include <iostream>
-#include <stdio.h>
+//#include <stdio.h>
 #include <string>
 #include <list>
 using namespace std;
@@ -15,15 +15,21 @@ enum tokenType {
 	LESSTHAN = '<', GREATERTHAN = '>', SINGLEQUOTE = '\'', DOUBLEQUOTE = '"', PERIOD = '.', ASSIGN = 257, EQUAL, LESSTHANEQAL, GREATERTHANEQUAL, NOTEQUAL, RETURN, WHILE, IF, THEN, ELSE, FOR, PROGRAM, BEGIN, END, IN, OUT, GLOBAL,
 	IS, TRUE, FALSE, PROCEDURE, INTEGER, FLOAT, IDENTIFIER, INTVAL, FLOATVAL, STRING, UNKNOWN, ENDFILE
 };
+
 string reservedWords[] = {"return", "while", "if", "then", "else", "for", "program", "begin", "end", "in", "out", "global", "is", "true", "false", "procedure", "integer", "float"};
 
+struct token {
+	tokenType type;
+	string name;
+};
+
 //Scanner Method
-tokenType ScanOneToken(FILE *file)
+token ScanOneToken(FILE *file)
 {
 	//Load in the character
 	char currentChar = getc(file);
 	char nextChar;
-	tokenType token;
+	token outToken;
 
 	//Skip whitespace
 	while (isspace(currentChar))
@@ -63,25 +69,25 @@ tokenType ScanOneToken(FILE *file)
 		{
 			//ANYTIME nextchar is used, finish with ungetc if the next character is not needed
 			ungetc(nextChar, file);
-			token = static_cast<tokenType>(currentChar);
+			outToken.type = static_cast<tokenType>(currentChar);
 		}
 		break;
 	//Regular single character tokens
 	case ';' : case '(': case ')': case '+': case '*': case '[': case ']': case '{': case '}': case '|': case '&': case ',': case '%': case '.': case '-':
-		token = static_cast<tokenType>(currentChar);
+		outToken.type = static_cast<tokenType>(currentChar);
 		break;
 	case '!':
 		nextChar = getc(file);
 		//Check if NOTEQUAL
 		if (nextChar == '=')
 		{
-			token = NOTEQUAL;
+			outToken.type = NOTEQUAL;
 		}
 		//Else, recognize as NOT logic
 		else
 		{
 			ungetc(nextChar, file);
-			token = NOT;
+			outToken.type = NOT;
 		}
 		break;
 	case '>':
@@ -89,13 +95,13 @@ tokenType ScanOneToken(FILE *file)
 		//Check if GREATERTHANEQUAL
 		if (nextChar == '=')
 		{
-			token = GREATERTHANEQUAL;
+			outToken.type = GREATERTHANEQUAL;
 		}
 		//Else, recognize as normal GREATERTHAN
 		else
 		{
 			ungetc(nextChar, file);
-			token = GREATERTHAN;
+			outToken.type = GREATERTHAN;
 		}
 		break;
 	case '<':
@@ -103,13 +109,13 @@ tokenType ScanOneToken(FILE *file)
 		//Check if LESSTHANEQUAL
 		if (nextChar == '=')
 		{
-			token = LESSTHANEQAL;
+			outToken.type = LESSTHANEQAL;
 		}
 		//Else, recognize as normal LESSTHAN
 		else
 		{
 			ungetc(nextChar, file);
-			token = LESSTHAN;
+			outToken.type = LESSTHAN;
 		}
 		break;
 	case ':':
@@ -117,13 +123,13 @@ tokenType ScanOneToken(FILE *file)
 		//Check if assignment token
 		if (nextChar == '=')
 		{
-			token = ASSIGN;
+			outToken.type = ASSIGN;
 		}
 		//Else, recognize as COLON
 		else
 		{
 			ungetc(nextChar, file);
-			token = COLON;
+			outToken.type = COLON;
 		}
 		break;
 	case '=':
@@ -131,13 +137,13 @@ tokenType ScanOneToken(FILE *file)
 		//Check if comparison (==)
 		if (nextChar == '=')
 		{
-			token = EQUAL;
+			outToken.type = EQUAL;
 		}
 		//Else, '=' is not in this language so return UNKNOWN
 		else
 		{
 			ungetc(nextChar, file);
-			token = UNKNOWN;
+			outToken.type = UNKNOWN;
 		}
 		break;
 	//Single quote case (string)
@@ -147,7 +153,7 @@ tokenType ScanOneToken(FILE *file)
 		{
 			currentChar = getc(file);
 		} while (currentChar != '\'');
-		token = STRING;
+		outToken.type = STRING;
 		break;
 	//Double quote string case
 	case '"':
@@ -156,13 +162,13 @@ tokenType ScanOneToken(FILE *file)
 		{
 			currentChar = getc(file);
 		} while (currentChar != '"');
-		token = STRING;
+		outToken.type = STRING;
 		break;
 	case EOF:
-		token = ENDFILE;
+		outToken.type = ENDFILE;
 		break;
 	default:
-		token = UNKNOWN;
+		outToken.type = UNKNOWN;
 		break;
 	}
 	//Identifier/Reserved word case
@@ -182,13 +188,13 @@ tokenType ScanOneToken(FILE *file)
 			if (reservedWords[i] == word)
 			{
 				isReserved = true;
-				token = static_cast<tokenType>(i + RETURN);
+				outToken.type = static_cast<tokenType>(i + RETURN);
 			}
 		}
 		//If not reserved, recognize as identifier
 		if (!isReserved)
 		{
-			token = IDENTIFIER;
+			outToken.type = IDENTIFIER;
 		}
 		ungetc(currentChar, file);
 	}
@@ -207,31 +213,32 @@ tokenType ScanOneToken(FILE *file)
 			{
 				currentChar = getc(file);
 			} while (currentChar >= '0' & currentChar <= '9');
-			token = FLOATVAL;
+			outToken.type = FLOATVAL;
 		}
 		//If no decimal encountered, recognize as integer value
 		else
 		{
-			token = INTVAL;
+			outToken.type = INTVAL;
 		}
 		ungetc(currentChar, file);
 	}
-	return token;
+
+	return outToken;
 }
 
 int main()
 {
 	//Initialization
 	cout << "begin" << endl;
-	tokenType currentToken = BEGIN;
-	std::list<string> symbolTable;
-	char filename[] = "";
-	FILE* programFile;
+	token currentToken = { BEGIN, "test" };
+	//std::list<string> symbolTable;
+	//char filename[] = "";
+	FILE* programFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\iterativeFib.src", "r");
 	//Console input for filename
-	cin >> filename;
-	programFile = fopen(filename, "r");
+	//cin >> filename;
+	//programFile = fopen(filename, "r");
 	//Keep scanning until EOF
-	while(currentToken != ENDFILE)
+	while(currentToken.type != ENDFILE)
 	{
 		//Trap for 'no file found'
 		if (programFile == NULL) 
@@ -240,7 +247,7 @@ int main()
 			break;
 		}
 		currentToken = ScanOneToken(programFile);
-		cout<<currentToken<<endl;
+		cout << currentToken.type << "  " << currentToken.name << endl;
 	}
 	cout << "end!";
 	return 0;
