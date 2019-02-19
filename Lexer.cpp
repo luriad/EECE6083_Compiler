@@ -4,7 +4,7 @@
  */
 
 #include <iostream>
-//#include <stdio.h>
+#include <stdio.h>
 #include <string>
 #include <list>
 using namespace std;
@@ -16,25 +16,15 @@ enum tokenType {
 	IS, TRUE, FALSE, PROCEDURE, INTEGER, FLOAT, IDENTIFIER, INTVAL, FLOATVAL, STRING, UNKNOWN, ENDFILE
 };
 
-string reservedWords[] = {"return", "while", "if", "then", "else", "for", "program", "begin", "end", "in", "out", "global", "is", "true", "false", "procedure", "integer", "float"};
-
+//Token structure
 struct token {
 	tokenType type;
 	string name;
 };
 
-//Adds one character to a string and advances the file character. For reading strings/symbols
-char addCharacter(FILE *file, string name) {
-	char characterToAdd = getc(file);
-	name.push_back(characterToAdd);
-	return characterToAdd;
-}
-
-//Removes a character from a string and pushes back the file character.
-void removeCharacter(FILE *file, string name, char current) {
-	ungetc(current, file);
-	name.pop_back();
-}
+//Symbol Table
+list<token> symbolTable = { {RETURN, "return"}, {WHILE, "while"} , {IF, "if"} , {THEN, "then"} , {ELSE, "else"} , {FOR, "for"} , {PROGRAM, "program"} , {BEGIN, "begin"} ,
+{END, "end"} , {IN, "in"} , {OUT, "out"} , {GLOBAL, "global"} , {IS, "is"} , {TRUE, "true"} , {FALSE, "false"} , {PROCEDURE, "procedure"} , {FLOAT, "float"} };
 
 //Scanner Method
 token ScanOneToken(FILE *file)
@@ -193,36 +183,40 @@ token ScanOneToken(FILE *file)
 		break;
 	default:
 		outToken.type = UNKNOWN;
+		//outToken.name = "ERROR: UNKNOWN TOKEN: " + outToken.name;
 		break;
 	}
 	//Identifier/Reserved word case
 	if (((currentChar >= 'A') & (currentChar <= 'Z')) | ((currentChar >= 'a') & (currentChar <= 'z')) | (currentChar == '_'))
 	{
-		std::string word;
-		bool isReserved = false;
+		//std::string word;
+		bool inSymTable = false;
 		//Keep scanning a-zA-Z0-9_
 		while ((currentChar >= 'A' & currentChar <= 'Z') | (currentChar >= 'a' & currentChar <= 'z') | currentChar == '_' | (currentChar <= '0' & currentChar >= '9'))
 		{
-			word += currentChar;
+			//word += currentChar;
 			currentChar = getc(file);
 			outToken.name.push_back(currentChar);
 		}
+		//Put back last character
+		ungetc(currentChar, file);
+		outToken.name.pop_back();
 		//Check if reserved word (EDIT: USE A LIST LOOKUP OR SYMBOL TABLE RATHER THAN THIS CRAPPY ALGORITHM)
-		for (int i = 0; i < sizeof(reservedWords); i++)
+		list<token>::iterator i;
+		for (i = symbolTable.begin(); i != symbolTable.end(); i++)
 		{
-			if (reservedWords[i] == word)
+			if (i->name == outToken.name)
 			{
-				isReserved = true;
-				outToken.type = static_cast<tokenType>(i + RETURN);
+				outToken.type = i->type;
+				inSymTable = true;
 			}
 		}
 		//If not reserved, recognize as identifier
-		if (!isReserved)
+		if (!inSymTable)
 		{
 			outToken.type = IDENTIFIER;
+			symbolTable.push_back(outToken);
 		}
-		ungetc(currentChar, file);
-		outToken.name.pop_back();
 	}
 	//Number case
 	else if (currentChar >= '0' & currentChar <= '9')
@@ -260,12 +254,7 @@ int main()
 	//Initialization
 	cout << "begin" << endl;
 	token currentToken = { BEGIN, "test" };
-	//std::list<string> symbolTable;
-	//char filename[] = "";
 	FILE* programFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\iterativeFib.src", "r");
-	//Console input for filename
-	//cin >> filename;
-	//programFile = fopen(filename, "r");
 	//Keep scanning until EOF
 	while(currentToken.type != ENDFILE)
 	{
@@ -278,7 +267,14 @@ int main()
 		currentToken = ScanOneToken(programFile);
 		cout << currentToken.type << "  " << currentToken.name << endl;
 	}
-	cout << "end!";
+	//List symbols for debugging
+	cout << endl << "Symbols (name: type): ";
+	list<token>::iterator i;
+	for (i = symbolTable.begin(); i != symbolTable.end(); i++)
+	{
+		cout << i->name << ": " << i->type << ", ";
+	}
+	cout << endl << endl << "end!";
 	return 0;
 	}
 
