@@ -32,7 +32,7 @@ list<token> symbolTable = { {RETURN, "return"}, {WHILE, "while"} , {IF, "if"} , 
 //Nonterminals
 enum nonTerminal {
 	PROGRAM_MAIN, PROGRAM_HEADER, PROGRAM_BODY, DECLARATION, PROCEDURE_DECLARATION, PROCEDURE_HEADER, PARAMETER_LIST, PARAMETER, PROCEDURE_BODY, VARIABLE_DECLARATION, TYPE_DECLARATION, TYPE_MARK, BOUND, STATEMENT, PROCEDURE_CALL, 
-	ASSIGNMENT_STATEMENT, DESTINATION, IF_STATEMENT, LOOP_STATEMENT, RETURN_STATEMENT, EXPRESSION, ARITHOP, RELATION, TERM, FACTOR, NAME, ARGUMENT_LIST
+	ASSIGNMENT_STATEMENT, DESTINATION, IF_STATEMENT, LOOP_STATEMENT, RETURN_STATEMENT, EXPRESSION, EXPRESSIONEXT, ARITHOP, ARITHOPEXT, RELATION, RELATIONEXT, TERM, TERMEXT, FACTOR, NAME, ARGUMENT_LIST
 };
 
 //Scanner Method
@@ -271,6 +271,13 @@ token ScanOneToken(FILE *file)
 	return outToken;
 }
 
+//Unget Token
+void UngetToken(string token, FILE *file) {
+	for (std::string::reverse_iterator rit = token.rbegin(); rit!=token.rend(); rit++) {
+		ungetc(*rit, file);
+	}
+}
+
 //Parser Method
 bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 	bool isParsed = false;
@@ -329,12 +336,12 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 		if (currentToken.type == NOT) {
 			currentToken = ScanOneToken(file);
 		}
-		if (parse(currentToken, file, ARITHOP)) {
-			isParsed = true;
-			break;
-		}
-		parse(currentToken, file, EXPRESSION);
+		parse(currentToken, file, ARITHOP);
 		currentToken = ScanOneToken(file);
+		parse(currentToken, file, EXPRESSIONEXT);
+		isParsed = true;
+		break;
+	case EXPRESSIONEXT:
 		if (currentToken.type == AND) {
 			cout << "and expression" << endl;
 		}
@@ -342,22 +349,26 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			cout << "or expression" << endl;
 		}
 		else {
-			expectedToken = "and/or";
+			UngetToken(currentToken.name, file);
+			isParsed = true;
 			break;
 		}
 		currentToken = ScanOneToken(file);
 		parse(currentToken, file, ARITHOP);
+		currentToken = ScanOneToken(file);
+		parse(currentToken, file, EXPRESSIONEXT);
 		isParsed = true;
 		break;
 
 	//ARITHOP PARSE
 	case ARITHOP:
-		if (parse(currentToken, file, RELATION)) {
-			isParsed = true;
-			break;
-		}
-		parse(currentToken, file, ARITHOP);
+		parse(currentToken, file, RELATION);
 		currentToken = ScanOneToken(file);
+		parse(currentToken, file, ARITHOPEXT);
+		isParsed = true;
+		break;
+
+	case ARITHOPEXT:
 		if (currentToken.type == PLUS) {
 			cout << "+ arithOp" << endl;
 		}
@@ -365,22 +376,25 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			cout << "- arithOp" << endl;
 		}
 		else {
-			expectedToken = "+/-";
+			UngetToken(currentToken.name, file);
+			isParsed = true;
 			break;
 		}
 		currentToken = ScanOneToken(file);
 		parse(currentToken, file, RELATION);
+		currentToken = ScanOneToken(file);
+		parse(currentToken, file, ARITHOPEXT);
 		isParsed = true;
 		break;
 
 	//RELATION PARSE
 	case RELATION:
-		if (parse(currentToken, file, TERM)) {
-			isParsed = true;
-			break;
-		}
-		parse(currentToken, file, RELATION);
+		parse(currentToken, file, TERM);
 		currentToken = ScanOneToken(file);
+		parse(currentToken, file, RELATIONEXT);
+		isParsed = true;
+		break;
+	case RELATIONEXT:
 		if (currentToken.type == LESSTHAN) {
 			cout << "< relation" << endl;
 		}
@@ -400,22 +414,25 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			cout << "!= relation" << endl;
 		}
 		else {
-			expectedToken = "compare";
+			UngetToken(currentToken.name, file);
+			isParsed = true;
 			break;
 		}
 		currentToken = ScanOneToken(file);
 		parse(currentToken, file, TERM);
+		currentToken = ScanOneToken(file);
+		parse(currentToken, file, RELATIONEXT);
 		isParsed = true;
 		break;
 
 	//TERM PARSE
 	case TERM:
-		if (parse(currentToken, file, FACTOR)) {
-			isParsed = true;
-			break;
-		}
-		parse(currentToken, file, TERM);
+		parse(currentToken, file, FACTOR);
 		currentToken = ScanOneToken(file);
+		parse(currentToken, file, TERMEXT);
+		isParsed = true;
+		break;
+	case TERMEXT:
 		if (currentToken.type == STAR) {
 			cout << "* term" << endl;
 		}
@@ -423,20 +440,108 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			cout << "/ term" << endl;
 		}
 		else {
-			expectedToken = "* or /";
+			UngetToken(currentToken.name, file);
+			isParsed = true;
 			break;
 		}
 		currentToken = ScanOneToken(file);
 		parse(currentToken, file, FACTOR);
+		currentToken = ScanOneToken(file);
+		parse(currentToken, file, TERMEXT);
 		isParsed = true;
 		break;
 
 	//FACTOR PARSE
 	case FACTOR:
-		if (currentToken.type == IDENTIFIER) {
+		if (currentToken.type == LPAREN) {
+			currentToken = ScanOneToken(file);
+			parse(currentToken, file, EXPRESSION);
+			currentToken = ScanOneToken(file);
+			if (currentToken.type != RPAREN) {
+				expectedToken = "')'";
+				break;
+			}
 			isParsed = true;
 			break;
 		}
+		else if (parse(currentToken, file, NAME)) {
+			isParsed = true;
+			break;
+		}
+		else if (parse(currentToken, file, PROCEDURE_CALL)) {
+			isParsed = true;
+			break;
+		}
+		else if (currentToken.type == MINUS) {
+			currentToken = ScanOneToken(file);
+			if (parse(currentToken, file, NAME)) {
+				isParsed = true;
+				break;
+			}
+			else if (currentToken.type == INTVAL | currentToken.type == FLOATVAL) {
+				isParsed = true;
+				break;
+			}
+			else {
+				expectedToken = "number";
+				break;
+			}
+		}
+		else if (currentToken.type == INTVAL | currentToken.type == FLOATVAL) {
+			isParsed = true;
+			break;
+		}
+		else if (currentToken.type == STRING) {
+			isParsed = true;
+			break;
+		}
+		else if (currentToken.type == TRUE) {
+			isParsed = true;
+			break;
+		}
+		else if (currentToken.type == FALSE) {
+			isParsed = true;
+			break;
+		}
+		else {
+			expectedToken = "factor";
+			break;
+		}
+		break;
+
+	//NAME PARSE
+	case NAME:
+		if (currentToken.type != IDENTIFIER) {
+			expectedToken = "identifier";
+			break;
+		}
+		currentToken = ScanOneToken(file);
+		if (currentToken.type == LBRACKET) {
+			currentToken = ScanOneToken(file);
+			if (!parse(currentToken, file, EXPRESSION)) {
+				expectedToken = "Expression";
+				break;
+			}
+			currentToken = ScanOneToken(file);
+			if (currentToken.type != RBRACKET) {
+				expectedToken = "]";
+				break;
+			}
+		}
+		else {
+			UngetToken(currentToken.name, file);
+			break;
+		}
+		isParsed = true;
+		break;
+
+	//STATEMENT PARSE (NEEDS TO BE FINISHED)
+	case STATEMENT:
+		while (currentToken.type != SEMICOLON) {
+			currentToken = ScanOneToken(file);
+		}
+		isParsed = true;
+		break;
 
 	//NO PARSE FOUND
 	default:
@@ -445,10 +550,10 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 		break;
 	}
 	if (isParsed) {
-		cout << nonTerminal << " parsed successfully" << " at line " << lineNumber << endl;
+		cout << nonTerminal << " " << currentToken.name << " parsed successfully at line " << lineNumber << endl;
 	}
 	else {
-		cout << "BLURGHARG *Dies* (Expected " << expectedToken << ")" << " at line " << lineNumber << endl;
+		cout << "BLURGHARG *Dies* (Expected " << expectedToken << " got " << currentToken.name << ")" << " at line " << lineNumber << endl;
 	}
 	return isParsed;
 }
