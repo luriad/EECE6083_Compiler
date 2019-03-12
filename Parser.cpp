@@ -55,45 +55,63 @@ token ScanOneToken(FILE *file)
 
 	//Skip comments
 	if (currentChar == '/') {
-		//Check next char
-		nextChar = getc(file);
-		//See if in-line comment
-		if (nextChar == '/')
-		{
-			//Keep skipping until next line
-			while (currentChar != '\n')
+		while (currentChar == '/') {
+			//Check next char
+			nextChar = getc(file);
+			//See if in-line comment
+			if (nextChar == '/')
 			{
-				currentChar = getc(file);
-			}
-			//Skip remaining whitespace
-			lineNumber++;
-			while (isspace(currentChar)) {
-				currentChar = getc(file);
-			}
-		}
-		//See if multi-line comment
-		else if (nextChar == '*')
-		{
-			//Skip until comment end (*/)
-			while ((currentChar != '*') | (nextChar != '/'))
-			{
-				currentChar = getc(file);
-				if (currentChar == '*')
+				//Keep skipping until next line
+				while (currentChar != '\n')
 				{
-					nextChar = getc(file);
+					currentChar = getc(file);
 				}
-			} 
-			currentChar = getc(file);
-			//Skip remaining whitespace
-			while (isspace(currentChar)) {
-				currentChar = getc(file);
+				//Skip remaining whitespace
+				lineNumber++;
+				while (isspace(currentChar)) {
+					currentChar = getc(file);
+				}
 			}
-		}
-		//Otherwise, put the nextChar back
-		else
-		{
-			//ANYTIME nextchar is used, finish with ungetc if the next character is not needed
-			ungetc(nextChar, file);
+			//See if multi-line comment
+			else if (nextChar == '*')
+			{
+				int nestLevel = 1;
+				//Skip until comment end (*/)
+				while (nestLevel > 0)
+				{
+					currentChar = getc(file);
+					if (currentChar == '\n') {
+						lineNumber++;
+					}
+					else if (currentChar == '/') {
+						currentChar = getc(file);
+						if (currentChar == '*') {
+							nestLevel++;
+						}
+					}
+					else if (currentChar == '*') {
+						currentChar = getc(file);
+						if (currentChar == '/') {
+							nestLevel--;
+						}
+					}
+				}
+				currentChar = getc(file);
+				//Skip remaining whitespace
+				while (isspace(currentChar)) {
+					if (currentChar == '\n') {
+						lineNumber++;
+					}
+					currentChar = getc(file);
+				}
+			}
+			//Otherwise, put the nextChar back
+			else
+			{
+				//ANYTIME nextchar is used, finish with ungetc if the next character is not needed
+				ungetc(nextChar, file);
+				break;
+			}
 		}
 	}
 
@@ -101,8 +119,8 @@ token ScanOneToken(FILE *file)
 
 	switch (currentChar)
 	{
-	//Regular single character tokens
-	case ';' : case '(': case ')': case '+': case '*': case '/': case '[': case ']': case '{': case '}': case '|': case '&': case ',': case '%': case '.': case '-':
+		//Regular single character tokens
+	case ';': case '(': case ')': case '+': case '*': case '/': case '[': case ']': case '{': case '}': case '|': case '&': case ',': case '%': case '.': case '-':
 		outToken.type = static_cast<tokenType>(currentChar);
 		break;
 	case '!':
@@ -180,7 +198,7 @@ token ScanOneToken(FILE *file)
 			outToken.type = UNKNOWN;
 		}
 		break;
-	//Single quote case (string)
+		//Single quote case (string)
 	case '\'':
 		//Keep scanning until next single quote reached
 		do
@@ -190,7 +208,7 @@ token ScanOneToken(FILE *file)
 		} while (currentChar != '\'');
 		outToken.type = STRINGVAL;
 		break;
-	//Double quote string case
+		//Double quote string case
 	case '"':
 		//Keep scanning until next double quote reached
 		do
@@ -213,7 +231,7 @@ token ScanOneToken(FILE *file)
 	{
 		bool inSymTable = false;
 		//Keep scanning a-zA-Z0-9_
-		while ((currentChar >= 'A' & currentChar <= 'Z') | (currentChar >= 'a' & currentChar <= 'z') | currentChar == '_' | (currentChar <= '0' & currentChar >= '9'))
+		while ((currentChar >= 'A' & currentChar <= 'Z') | (currentChar >= 'a' & currentChar <= 'z') | currentChar == '_' | (currentChar >= '0' & currentChar <= '9'))
 		{
 			//word += currentChar;
 			currentChar = getc(file);
@@ -266,10 +284,7 @@ token ScanOneToken(FILE *file)
 		ungetc(currentChar, file);
 		outToken.name.pop_back();
 	}
-	if (outToken.type == UNKNOWN) {
-		cout << "ERROR: UNKOWN TOKEN: " << outToken.name << " at line "<< lineNumber << endl;
-	}
-	cout << outToken.name << " Scanned as " << outToken.type << endl;
+
 	return outToken;
 }
 
@@ -1046,7 +1061,7 @@ int main()
 	//Initialization
 	cout << "begin" << endl;
 	token currentToken = { BEGIN, "test" };
-	FILE* programFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\iterativeFib.src", "r");
+	FILE* programFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\source.src", "r");
 
 	//Parse program
 	currentToken = ScanOneToken(programFile);

@@ -9,6 +9,8 @@
 #include <list>
 using namespace std;
 
+int lineNumber = 1;
+
 //Token Types
 enum tokenType {
 	SEMICOLON = ';', LPAREN = '(', RPAREN = ')', COLON = ':', PLUS = '+', MINUS = '-', STAR = '*', SLASH = '/', LBRACKET = '[', RBRACKET = ']', LBRACE = '{', RBRACE = '}', OR = '|', AND = '&', NOT = '!', COMMA = ',', MODULUS = '%',
@@ -38,49 +40,71 @@ token ScanOneToken(FILE *file)
 	//Skip whitespace
 	while (isspace(currentChar))
 	{
+		if (currentChar == '\n') {
+			lineNumber++;
+		}
 		currentChar = getc(file);
 	}
 
 	//Skip comments
 	if (currentChar == '/') {
-		//Check next char
-		nextChar = getc(file);
-		//See if in-line comment
-		if (nextChar == '/')
-		{
-			//Keep skipping until next line
-			while (currentChar != '\n')
+		while (currentChar == '/') {
+			//Check next char
+			nextChar = getc(file);
+			//See if in-line comment
+			if (nextChar == '/')
 			{
-				currentChar = getc(file);
-			}
-			//Skip remaining whitespace
-			while (isspace(currentChar)) {
-				currentChar = getc(file);
-			}
-		}
-		//See if multi-line comment
-		else if (nextChar == '*')
-		{
-			//Skip until comment end (*/)
-			while ((currentChar != '*') | (nextChar != '/'))
-			{
-				currentChar = getc(file);
-				if (currentChar == '*')
+				//Keep skipping until next line
+				while (currentChar != '\n')
 				{
-					nextChar = getc(file);
+					currentChar = getc(file);
 				}
-			} 
-			currentChar = getc(file);
-			//Skip remaining whitespace
-			while (isspace(currentChar)) {
-				currentChar = getc(file);
+				//Skip remaining whitespace
+				lineNumber++;
+				while (isspace(currentChar)) {
+					currentChar = getc(file);
+				}
 			}
-		}
-		//Otherwise, put the nextChar back
-		else
-		{
-			//ANYTIME nextchar is used, finish with ungetc if the next character is not needed
-			ungetc(nextChar, file);
+			//See if multi-line comment
+			else if (nextChar == '*')
+			{
+				int nestLevel = 1;
+				//Skip until comment end (*/)
+				while (nestLevel > 0)
+				{
+					currentChar = getc(file);
+					if (currentChar == '\n') {
+						lineNumber++;
+					}
+					else if (currentChar == '/') {
+						currentChar = getc(file);
+						if (currentChar == '*') {
+							nestLevel++;
+						}
+					}
+					else if (currentChar == '*') {
+						currentChar = getc(file);
+						if (currentChar == '/') {
+							nestLevel--;
+						}
+					}
+				}
+				currentChar = getc(file);
+				//Skip remaining whitespace
+				while (isspace(currentChar)) {
+					if (currentChar == '\n') {
+						lineNumber++;
+					}
+					currentChar = getc(file);
+				}
+			}
+			//Otherwise, put the nextChar back
+			else
+			{
+				//ANYTIME nextchar is used, finish with ungetc if the next character is not needed
+				ungetc(nextChar, file);
+				break;
+			}
 		}
 	}
 
@@ -200,7 +224,7 @@ token ScanOneToken(FILE *file)
 	{
 		bool inSymTable = false;
 		//Keep scanning a-zA-Z0-9_
-		while ((currentChar >= 'A' & currentChar <= 'Z') | (currentChar >= 'a' & currentChar <= 'z') | currentChar == '_' | (currentChar <= '0' & currentChar >= '9'))
+		while ((currentChar >= 'A' & currentChar <= 'Z') | (currentChar >= 'a' & currentChar <= 'z') | currentChar == '_' | (currentChar >= '0' & currentChar <= '9'))
 		{
 			//word += currentChar;
 			currentChar = getc(file);
@@ -262,7 +286,7 @@ int main()
 	//Initialization
 	cout << "begin" << endl;
 	token currentToken = { BEGIN, "test" };
-	FILE* programFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\incorrect\\parser\\badSource.src", "r");
+	FILE* programFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\test1.src", "r");
 	//Keep scanning until EOF
 	while(currentToken.type != ENDFILE)
 	{
@@ -273,7 +297,7 @@ int main()
 			break;
 		}
 		currentToken = ScanOneToken(programFile);
-		cout << currentToken.type << "  " << currentToken.name << endl;
+		cout << currentToken.type << "  " << currentToken.name  << " Line: " << lineNumber << endl;
 		if (currentToken.type == UNKNOWN) {
 			cout << "ERROR: UNKNOWN TOKEN: " + currentToken.name << endl;
 		}
