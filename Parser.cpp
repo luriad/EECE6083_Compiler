@@ -269,6 +269,7 @@ token ScanOneToken(FILE *file)
 	if (outToken.type == UNKNOWN) {
 		cout << "ERROR: UNKOWN TOKEN: " << outToken.name << " at line "<< lineNumber << endl;
 	}
+	cout << outToken.name << " Scanned as " << outToken.type << endl;
 	return outToken;
 }
 
@@ -302,6 +303,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Program main";
 		break;
 	case PROGRAM_HEADER:
 		if (currentToken.type != PROGRAM) {
@@ -319,6 +321,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Program header";
 		break;
 	case PROGRAM_BODY:
 		while (currentToken.type != BEGIN & currentToken.type != ENDFILE) {
@@ -348,6 +351,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Program body";
 		break;
 
 	//DECLARATION PARSE
@@ -361,9 +365,6 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 		else if (parse(currentToken, file, VARIABLE_DECLARATION)) {
 			cout << "Variable Declaration" << endl;
 		}
-		/*else if (parse(currentToken, file, TYPE_DECLARATION)) {
-			cout << "Type Declaration" << endl;
-		}*/
 		else {
 			expectedToken = "Declaration";
 			break;
@@ -374,6 +375,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Declaration";
 		break;
 
 	//PROCEDURE DECLARATION PARSE
@@ -386,6 +388,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Procedure declaration";
 		break;
 	case PROCEDURE_HEADER:
 		if (currentToken.type != PROCEDURE) {
@@ -411,6 +414,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Procedure header";
 		break;
 	case PROCEDURE_BODY:
 		while (currentToken.type != BEGIN & currentToken.type != ENDFILE) {
@@ -440,6 +444,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Procedure body";
 		break;
 
 	//PARAMETER LIST PARSE
@@ -459,6 +464,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			UngetToken(nextToken.name, file);
 		}
 		isParsed = true;
+		expectedToken = "Parameter List";
 		break;
 	case PARAMETER:
 		if (!parse(currentToken, file, VARIABLE_DECLARATION)) {
@@ -479,6 +485,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Parameter";
 		break;
 
 	//VARIABLE DECLARATION PARSE
@@ -507,6 +514,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			UngetToken(nextToken.name, file);
 		}
 		isParsed = true;
+		expectedToken = "Variable Declaration";
 		break;
 
 	//TYPE MARK PARSE
@@ -531,6 +539,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Type mark";
 		break;
 
 	//BOUND PARSE
@@ -548,21 +557,30 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Bound";
 		break;
 
-	//STATEMENT PARSE (NEEDS TO BE FINISHED)
+	//STATEMENT PARSE
 	case STATEMENT:
-		if (parse(currentToken, file, ASSIGNMENT_STATEMENT)) {
-			cout << "Assignment Statement" << endl;
+		if (currentToken.type == IDENTIFIER) {
+			currentToken = ScanOneToken(file);
+			parse(currentToken, file, NAME);
+			currentToken = ScanOneToken(file);
+			if (parse(currentToken, file, ASSIGNMENT_STATEMENT)) {
+				cout << "Assignment Statement" << endl;
+			}
+			else if (parse(currentToken, file, PROCEDURE_CALL)) {
+				cout << "Expression Statement" << endl;
+			}
+			else {
+				break;
+			}
 		}
 		else if (parse(currentToken, file, IF_STATEMENT)) {
 			cout << "If Statement" << endl;
 		}
 		else if (parse(currentToken, file, LOOP_STATEMENT)) {
 			cout << "Loop Statement" << endl;
-		}
-		else if (parse(currentToken, file, PROCEDURE_CALL)) {
-			cout << "Procedure Call Statement" << endl;
 		}
 		else if (parse(currentToken, file, RETURN_STATEMENT)) {
 			cout << "Return Statement" << endl;
@@ -577,37 +595,28 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Statement";
 		break;
 
 	//PROCEDURE CALL PARSE
 	case PROCEDURE_CALL:
-		if (currentToken.type != IDENTIFIER) {
-			break;
-		}
-		currentToken = ScanOneToken(file);
 		if (currentToken.type != LPAREN) {
 			break;
 		}
 		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, ARGUMENT_LIST)) {
-			break;
-		}
+		parse(currentToken, file, ARGUMENT_LIST);
 		currentToken = ScanOneToken(file);
 		if (currentToken.type != RPAREN) {
 			expectedToken = ")";
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Procedure call";
 		break;
 
 	//ASSIGNMENT STATEMENT
 	case ASSIGNMENT_STATEMENT:
-		if (!parse(currentToken, file, DESTINATION)) {
-			break;
-		}
-		currentToken = ScanOneToken(file);
 		if (currentToken.type != ASSIGN) {
-			expectedToken = ":=";
 			break;
 		}
 		currentToken = ScanOneToken(file);
@@ -615,15 +624,12 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Assignment Statement";
 		break;
 
 	//DESTINATION
 	case DESTINATION:
-		if (currentToken.type != IDENTIFIER) {
-			break;
-		}
-		nextToken = ScanOneToken(file);
-		if (nextToken.type == LBRACKET) {
+		if (currentToken.type == LBRACKET) {
 			currentToken = ScanOneToken(file);
 			if (!parse(currentToken, file, EXPRESSION)) {
 				break;
@@ -635,15 +641,15 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			}
 		}
 		else {
-			UngetToken(nextToken.name, file);
+			UngetToken(currentToken.name, file);
 		}
 		isParsed = true;
+		expectedToken = "Destination";
 		break;
 
 	//IF PARSE
 	case IF_STATEMENT:
 		if (currentToken.type != IF) {
-			//expectedToken = "if";
 			break;
 		}
 		currentToken = ScanOneToken(file);
@@ -691,6 +697,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "If statement";
 		break;
 
 	//LOOP STATEMENT PARSE
@@ -702,6 +709,10 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 		if (currentToken.type != LPAREN) {
 			expectedToken = "(";
 			break;
+		}
+		currentToken = ScanOneToken(file);
+		if (currentToken.type != IDENTIFIER) {
+			expectedToken = "Identifier";
 		}
 		currentToken = ScanOneToken(file);
 		if (!parse(currentToken, file, ASSIGNMENT_STATEMENT)) {
@@ -726,6 +737,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			if (!parse(currentToken, file, STATEMENT)) {
 				break;
 			}
+			currentToken = ScanOneToken(file);
 		}
 		if (currentToken.type != END) {
 			expectedToken = "end";
@@ -737,6 +749,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Loop statement";
 		break;
 
 	//RETURN STATEMENT PARSE
@@ -745,6 +758,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Return statement";
 		break;
 
 	//EXPRESSION PARSE
@@ -760,6 +774,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Expression";
 		break;
 	case EXPRESSIONEXT:
 		if (currentToken.type == AND) {
@@ -769,7 +784,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			cout << "or expression" << endl;
 		}
 		else {
-			UngetToken(currentToken.name, file);
+		    UngetToken(currentToken.name, file);
 			isParsed = true;
 			break;
 		}
@@ -794,6 +809,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Arithmetic operation";
 		break;
 
 	case ARITHOPEXT:
@@ -829,6 +845,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Relation";
 		break;
 	case RELATIONEXT:
 		if (currentToken.type == LESSTHAN) {
@@ -875,6 +892,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		isParsed = true;
+		expectedToken = "Term";
 		break;
 	case TERMEXT:
 		if (currentToken.type == STAR) {
@@ -912,24 +930,33 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 				break;
 			}
 			isParsed = true;
+			expectedToken = "Factor";
 			break;
 		}
-		else if (parse(currentToken, file, PROCEDURE_CALL)) {
-			isParsed = true;
-			break;
-		}
-		else if (parse(currentToken, file, NAME)) {
-			isParsed = true;
-			break;
+		if (currentToken.type == IDENTIFIER) {
+			currentToken = ScanOneToken(file);
+			if (parse(currentToken, file, PROCEDURE_CALL)) {
+				isParsed = true;
+				expectedToken = "Factor";
+				break;
+			}
+			else if (parse(currentToken, file, NAME)) {
+				isParsed = true;
+				expectedToken = "Factor";
+				break;
+			}
 		}
 		else if (currentToken.type == MINUS) {
 			currentToken = ScanOneToken(file);
-			if (parse(currentToken, file, NAME)) {
+			if (currentToken.type == INTVAL | currentToken.type == FLOATVAL) {
 				isParsed = true;
+				expectedToken = "Factor";
 				break;
 			}
-			else if (currentToken.type == INTVAL | currentToken.type == FLOATVAL) {
+			else if (currentToken.type == IDENTIFIER) {
+				parse(currentToken, file, NAME);
 				isParsed = true;
+				expectedToken = "Factor";
 				break;
 			}
 			else {
@@ -939,33 +966,29 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 		}
 		else if (currentToken.type == INTVAL | currentToken.type == FLOATVAL) {
 			isParsed = true;
+			expectedToken = "Factor";
 			break;
 		}
-		else if (currentToken.type == STRING) {
+		else if (currentToken.type == STRINGVAL) {
 			isParsed = true;
+			expectedToken = "Factor";
 			break;
 		}
 		else if (currentToken.type == TRUE) {
 			isParsed = true;
+			expectedToken = "Factor";
 			break;
 		}
 		else if (currentToken.type == FALSE) {
 			isParsed = true;
+			expectedToken = "Factor";
 			break;
 		}
-		else {
-			//expectedToken = "factor";
-			break;
-		}
+		break;
 
 	//NAME PARSE
 	case NAME:
-		if (currentToken.type != IDENTIFIER) {
-			//expectedToken = "identifier";
-			break;
-		}
-		nextToken = ScanOneToken(file);
-		if (nextToken.type == LBRACKET) {
+		if (currentToken.type == LBRACKET) {
 			currentToken = ScanOneToken(file);
 			if (!parse(currentToken, file, EXPRESSION)) {
 				expectedToken = "Expression";
@@ -978,9 +1001,10 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			}
 		}
 		else {
-			UngetToken(nextToken.name, file);
+			UngetToken(currentToken.name, file);
 		}
 		isParsed = true;
+		expectedToken = "Name";
 		break;
 
 	//ARGUMENT LIST PARSE
@@ -999,6 +1023,7 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			UngetToken(nextToken.name, file);
 		}
 		isParsed = true;
+		expectedToken = "Argument list";
 		break;
 
 	//NO PARSE FOUND
@@ -1007,8 +1032,8 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 		expectedToken = "parsable nonterminal";
 		break;
 	}
-	if (isParsed) {
-		cout << nonTerminal << " " << currentToken.name << " parsed successfully at line " << lineNumber << endl;
+	if (isParsed & expectedToken != "") {
+		cout << expectedToken << " " << currentToken.name << " parsed successfully at line " << lineNumber << endl;
 	}
 	else if (expectedToken != "") {
 		cout << "BLURGHARG *Dies* (Expected " << expectedToken << " got " << currentToken.name << ")" << " at line " << lineNumber << endl;
@@ -1016,61 +1041,18 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 	return isParsed;
 }
 
-/*
-void exprParse(token currentToken, FILE *file) {
-	if (currentToken.type == NOT) {
-		currentToken = ScanOneToken(file);
-	}
-	//Call arithOp Parse
-
-}
-
-void ifParse(token currentToken, FILE *file) {
-	if (currentToken.type == IF) {
-		currentToken = ScanOneToken(file);
-		if (currentToken.type == LPAREN) {
-			currentToken = ScanOneToken(file);
-			//Call Expression Parse
-		}
-		else {
-			pukeNDie("(");
-		}
-	}
-	else {
-		pukeNDie("if");
-	}
-}
-*/
-
 int main()
 {
 	//Initialization
 	cout << "begin" << endl;
 	token currentToken = { BEGIN, "test" };
-	FILE* programFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\logicals.src", "r");
-	//Keep scanning until EOF
-	//parse(currentToken, programFile, PROGRAM_MAIN);
-	bool seen = false;
+	FILE* programFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\iterativeFib.src", "r");
+
+	//Parse program
 	currentToken = ScanOneToken(programFile);
 	parse(currentToken, programFile, PROGRAM_MAIN);
-	//while(currentToken.type != ENDFILE)
-	//{
-	//	//Trap for 'no file found'
-	//	if (programFile == NULL) 
-	//	{
-	//		cout << "No file found" << endl;
-	//		break;
-	//	}
-	//	currentToken = ScanOneToken(programFile);
-	//	if (currentToken.type == IF && !seen) {
-	//		parse(currentToken, programFile, IF_STATEMENT);
-	//		seen = true;
-	//	}
-	//	//cout << currentToken.type << "  " << currentToken.name << endl;
-	//	//if (currentToken.type == UNKNOWN) {
-	//	//	cout << "ERROR: UNKNOWN TOKEN: " + currentToken.name << endl;
-	//	//}
-	//}
+	cout << "**End of program**" << endl;
+
 	//List symbols for debugging
 	cout << endl << "Symbols (name: type): ";
 	list<token>::iterator i;
@@ -1078,7 +1060,7 @@ int main()
 	{
 		cout << i->name << ": " << i->type << ", ";
 	}
-	cout << endl << endl << "end!";
+	cout << endl << endl << "end!" << endl;
 	return 0;
 	}
 
