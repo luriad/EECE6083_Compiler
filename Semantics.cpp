@@ -11,6 +11,9 @@
 #include <unordered_map>
 using namespace std;
 
+//File to compile
+FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\source.src", "r");
+
 //Line number
 int lineNumber = 1;
 
@@ -39,7 +42,7 @@ enum nonTerminal {
 };
 
 //Scanner Method
-token ScanOneToken(FILE *file)
+token ScanOneToken()
 {
 	//Load in the character
 	token outToken;
@@ -289,14 +292,14 @@ token ScanOneToken(FILE *file)
 }
 
 //Unget Token
-void UngetToken(string token, FILE *file) {
+void UngetToken(string token) {
 	for (std::string::reverse_iterator rit = token.rbegin(); rit!=token.rend(); rit++) {
 		ungetc(*rit, file);
 	}
 }
 
 //Parser Method
-bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
+bool parse(token currentToken, nonTerminal nonTerminal) {
 	bool isParsed = false;
 	string expectedToken;
 	token nextToken;
@@ -305,14 +308,14 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 
 	//PROGRAM PARSE
 	case PROGRAM_MAIN:
-		if (!parse(currentToken, file, PROGRAM_HEADER)) {
+		if (!parse(currentToken, PROGRAM_HEADER)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, PROGRAM_BODY)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, PROGRAM_BODY)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != PERIOD) {
 			expectedToken = ".";
 			break;
@@ -325,12 +328,12 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			expectedToken = "program";
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != IDENTIFIER) {
 			expectedToken = "identifier";
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != IS) {
 			expectedToken = "is";
 			break;
@@ -340,27 +343,27 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 		break;
 	case PROGRAM_BODY:
 		while (currentToken.type != BEGIN & currentToken.type != ENDFILE) {
-			if (!parse(currentToken, file, DECLARATION)) {
+			if (!parse(currentToken, DECLARATION)) {
 				break;
 			}
-			currentToken = ScanOneToken(file);
+			currentToken = ScanOneToken();
 		}
 		if (currentToken.type != BEGIN) {
 			expectedToken = "begin";
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		while (currentToken.type != END & currentToken.type != ENDFILE) {
-			if (!parse(currentToken, file, STATEMENT)) {
+			if (!parse(currentToken, STATEMENT)) {
 				break;
 			}
-			currentToken = ScanOneToken(file);
+			currentToken = ScanOneToken();
 		}
 		if (currentToken.type != END) {
 			expectedToken = "end";
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != PROGRAM) {
 			expectedToken = "program";
 			break;
@@ -372,19 +375,19 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 	//DECLARATION PARSE
 	case DECLARATION:
 		if (currentToken.type == GLOBAL) {
-			currentToken = ScanOneToken(file);
+			currentToken = ScanOneToken();
 		}
-		if (parse(currentToken, file, PROCEDURE_DECLARATION)) {
+		if (parse(currentToken, PROCEDURE_DECLARATION)) {
 			cout << "Procedure Declaration" << endl;
 		}
-		else if (parse(currentToken, file, VARIABLE_DECLARATION)) {
+		else if (parse(currentToken, VARIABLE_DECLARATION)) {
 			cout << "Variable Declaration" << endl;
 		}
 		else {
 			expectedToken = "Declaration";
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != SEMICOLON) {
 			expectedToken = ";";
 			break;
@@ -395,11 +398,11 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 
 	//PROCEDURE DECLARATION PARSE
 	case PROCEDURE_DECLARATION:
-		if (!parse(currentToken, file, PROCEDURE_HEADER)) {
+		if (!parse(currentToken, PROCEDURE_HEADER)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, PROCEDURE_BODY)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, PROCEDURE_BODY)) {
 			break;
 		}
 		isParsed = true;
@@ -409,21 +412,21 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 		if (currentToken.type != PROCEDURE) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != IDENTIFIER) {
 			expectedToken = "Identifier";
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != LPAREN) {
 			expectedToken = "(";
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, PARAMETER_LIST)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, PARAMETER_LIST)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != RPAREN) {
 			expectedToken = ")";
 			break;
@@ -433,27 +436,27 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 		break;
 	case PROCEDURE_BODY:
 		while (currentToken.type != BEGIN & currentToken.type != ENDFILE) {
-			if (!parse(currentToken, file, DECLARATION)) {
+			if (!parse(currentToken, DECLARATION)) {
 				break;
 			}
-			currentToken = ScanOneToken(file);
+			currentToken = ScanOneToken();
 		}
 		if (currentToken.type == ENDFILE) {
 			expectedToken = "begin";
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		while (currentToken.type != END & currentToken.type != ENDFILE) {
-			if (!parse(currentToken, file, STATEMENT)) {
+			if (!parse(currentToken, STATEMENT)) {
 				break;
 			}
-			currentToken = ScanOneToken(file);
+			currentToken = ScanOneToken();
 		}
 		if (currentToken.type == ENDFILE) {
 			expectedToken = "end";
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != PROCEDURE) {
 			expectedToken = "procedure";
 			break;
@@ -464,28 +467,28 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 
 	//PARAMETER LIST PARSE
 	case PARAMETER_LIST:
-		if (!parse(currentToken, file, PARAMETER)) {
+		if (!parse(currentToken, PARAMETER)) {
 			break;
 		}
-		nextToken = ScanOneToken(file);
+		nextToken = ScanOneToken();
 		if (nextToken.type == COMMA) {
-			currentToken = ScanOneToken(file);
-			if (!parse(currentToken, file, PARAMETER_LIST)) {
+			currentToken = ScanOneToken();
+			if (!parse(currentToken, PARAMETER_LIST)) {
 				expectedToken = "More parameters";
 				break;
 			}
 		}
 		else {
-			UngetToken(nextToken.name, file);
+			UngetToken(nextToken.name);
 		}
 		isParsed = true;
 		expectedToken = "Parameter List";
 		break;
 	case PARAMETER:
-		if (!parse(currentToken, file, VARIABLE_DECLARATION)) {
+		if (!parse(currentToken, VARIABLE_DECLARATION)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type == IN) {
 			cout << "In parameter" << endl;
 		}
@@ -505,28 +508,28 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 
 	//VARIABLE DECLARATION PARSE
 	case VARIABLE_DECLARATION:
-		if (!parse(currentToken, file, TYPE_MARK)) {
+		if (!parse(currentToken, TYPE_MARK)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != IDENTIFIER) {
 			expectedToken = "Identifier";
 			break;
 		}
-		nextToken = ScanOneToken(file);
+		nextToken = ScanOneToken();
 		if (nextToken.type == LBRACKET) {
-			currentToken = ScanOneToken(file);
-			if (!parse(currentToken, file, BOUND)) {
+			currentToken = ScanOneToken();
+			if (!parse(currentToken, BOUND)) {
 				break;
 			}
-			currentToken = ScanOneToken(file);
+			currentToken = ScanOneToken();
 			if (currentToken.type != RBRACKET) {
 				expectedToken = "]";
 				break;
 			}
 		}
 		else {
-			UngetToken(nextToken.name, file);
+			UngetToken(nextToken.name);
 		}
 		isParsed = true;
 		expectedToken = "Variable Declaration";
@@ -559,16 +562,16 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 
 	//BOUND PARSE
 	case BOUND:
-		if (!parse(currentToken, file, EXPRESSION)) {
+		if (!parse(currentToken, EXPRESSION)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != COLON) {
 			expectedToken = ":";
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, EXPRESSION)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, EXPRESSION)) {
 			break;
 		}
 		isParsed = true;
@@ -578,33 +581,33 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 	//STATEMENT PARSE
 	case STATEMENT:
 		if (currentToken.type == IDENTIFIER) {
-			currentToken = ScanOneToken(file);
-			parse(currentToken, file, NAME);
-			currentToken = ScanOneToken(file);
-			if (parse(currentToken, file, ASSIGNMENT_STATEMENT)) {
+			currentToken = ScanOneToken();
+			parse(currentToken, NAME);
+			currentToken = ScanOneToken();
+			if (parse(currentToken, ASSIGNMENT_STATEMENT)) {
 				cout << "Assignment Statement" << endl;
 			}
-			else if (parse(currentToken, file, PROCEDURE_CALL)) {
+			else if (parse(currentToken, PROCEDURE_CALL)) {
 				cout << "Expression Statement" << endl;
 			}
 			else {
 				break;
 			}
 		}
-		else if (parse(currentToken, file, IF_STATEMENT)) {
+		else if (parse(currentToken, IF_STATEMENT)) {
 			cout << "If Statement" << endl;
 		}
-		else if (parse(currentToken, file, LOOP_STATEMENT)) {
+		else if (parse(currentToken, LOOP_STATEMENT)) {
 			cout << "Loop Statement" << endl;
 		}
-		else if (parse(currentToken, file, RETURN_STATEMENT)) {
+		else if (parse(currentToken, RETURN_STATEMENT)) {
 			cout << "Return Statement" << endl;
 		}
 		else {
 			expectedToken = "Statement";
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != SEMICOLON) {
 			expectedToken = ";";
 			break;
@@ -618,9 +621,9 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 		if (currentToken.type != LPAREN) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		parse(currentToken, file, ARGUMENT_LIST);
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
+		parse(currentToken, ARGUMENT_LIST);
+		currentToken = ScanOneToken();
 		if (currentToken.type != RPAREN) {
 			expectedToken = ")";
 			break;
@@ -634,8 +637,8 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 		if (currentToken.type != ASSIGN) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, EXPRESSION)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, EXPRESSION)) {
 			break;
 		}
 		isParsed = true;
@@ -645,18 +648,18 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 	//DESTINATION
 	case DESTINATION:
 		if (currentToken.type == LBRACKET) {
-			currentToken = ScanOneToken(file);
-			if (!parse(currentToken, file, EXPRESSION)) {
+			currentToken = ScanOneToken();
+			if (!parse(currentToken, EXPRESSION)) {
 				break;
 			}
-			currentToken = ScanOneToken(file);
+			currentToken = ScanOneToken();
 			if (currentToken.type != RBRACKET) {
 				expectedToken = "]";
 				break;
 			}
 		}
 		else {
-			UngetToken(currentToken.name, file);
+			UngetToken(currentToken.name);
 		}
 		isParsed = true;
 		expectedToken = "Destination";
@@ -667,46 +670,46 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 		if (currentToken.type != IF) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != LPAREN) {
 			expectedToken = "'('";
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, EXPRESSION)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, EXPRESSION)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != RPAREN) {
 			expectedToken = "')'";
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != THEN) {
 			expectedToken = "then";
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		while (currentToken.type != ELSE & currentToken.type != END & currentToken.type != ENDFILE) {
-			if (!parse(currentToken, file, STATEMENT)) {
+			if (!parse(currentToken, STATEMENT)) {
 				break;
 			}
-			currentToken = ScanOneToken(file);
+			currentToken = ScanOneToken();
 		}
 		if (currentToken.type == ELSE) {
-			currentToken = ScanOneToken(file);
+			currentToken = ScanOneToken();
 			while (currentToken.type != END) {
-				if (!parse(currentToken, file, STATEMENT)) {
+				if (!parse(currentToken, STATEMENT)) {
 					break;
 				}
-				currentToken = ScanOneToken(file);
+				currentToken = ScanOneToken();
 			}
 		}
 		if (currentToken.type != END) {
 			expectedToken = "end";
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != IF) {
 			expectedToken = "if";
 			break;
@@ -720,45 +723,45 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 		if (currentToken.type != FOR) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != LPAREN) {
 			expectedToken = "(";
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != IDENTIFIER) {
 			expectedToken = "Identifier";
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, ASSIGNMENT_STATEMENT)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, ASSIGNMENT_STATEMENT)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != SEMICOLON) {
 			expectedToken = ";";
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, EXPRESSION)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, EXPRESSION)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != RPAREN) {
 			expectedToken = ")";
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		while (currentToken.type != END & currentToken.type != ENDFILE) {
-			if (!parse(currentToken, file, STATEMENT)) {
+			if (!parse(currentToken, STATEMENT)) {
 				break;
 			}
-			currentToken = ScanOneToken(file);
+			currentToken = ScanOneToken();
 		}
 		if (currentToken.type != END) {
 			expectedToken = "end";
 			break;
 		}
-		currentToken = ScanOneToken(file);
+		currentToken = ScanOneToken();
 		if (currentToken.type != FOR) {
 			expectedToken = "for";
 			break;
@@ -779,13 +782,13 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 	//EXPRESSION PARSE
 	case EXPRESSION:
 		if (currentToken.type == NOT) {
-			currentToken = ScanOneToken(file);
+			currentToken = ScanOneToken();
 		}
-		if (!parse(currentToken, file, ARITHOP)) {
+		if (!parse(currentToken, ARITHOP)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, EXPRESSIONEXT)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, EXPRESSIONEXT)) {
 			break;
 		}
 		isParsed = true;
@@ -799,16 +802,16 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			cout << "or expression" << endl;
 		}
 		else {
-		    UngetToken(currentToken.name, file);
+		    UngetToken(currentToken.name);
 			isParsed = true;
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, ARITHOP)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, ARITHOP)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, EXPRESSIONEXT)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, EXPRESSIONEXT)) {
 			break;
 		}
 		isParsed = true;
@@ -816,11 +819,11 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 
 	//ARITHOP PARSE
 	case ARITHOP:
-		if (!parse(currentToken, file, RELATION)) {
+		if (!parse(currentToken, RELATION)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, ARITHOPEXT)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, ARITHOPEXT)) {
 			break;
 		}
 		isParsed = true;
@@ -835,16 +838,16 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			cout << "- arithOp" << endl;
 		}
 		else {
-			UngetToken(currentToken.name, file);
+			UngetToken(currentToken.name);
 			isParsed = true;
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, RELATION)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, RELATION)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, ARITHOPEXT)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, ARITHOPEXT)) {
 			break;
 		}
 		isParsed = true;
@@ -852,11 +855,11 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 
 	//RELATION PARSE
 	case RELATION:
-		if (!parse(currentToken, file, TERM)) {
+		if (!parse(currentToken, TERM)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, RELATIONEXT)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, RELATIONEXT)) {
 			break;
 		}
 		isParsed = true;
@@ -882,16 +885,16 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			cout << "!= relation" << endl;
 		}
 		else {
-			UngetToken(currentToken.name, file);
+			UngetToken(currentToken.name);
 			isParsed = true;
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, TERM)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, TERM)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, RELATIONEXT)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, RELATIONEXT)) {
 			break;
 		}
 		isParsed = true;
@@ -899,11 +902,11 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 
 	//TERM PARSE
 	case TERM:
-		if (!parse(currentToken, file, FACTOR)) {
+		if (!parse(currentToken, FACTOR)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, TERMEXT)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, TERMEXT)) {
 			break;
 		}
 		isParsed = true;
@@ -917,16 +920,16 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			cout << "/ term" << endl;
 		}
 		else {
-			UngetToken(currentToken.name, file);
+			UngetToken(currentToken.name);
 			isParsed = true;
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, FACTOR)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, FACTOR)) {
 			break;
 		}
-		currentToken = ScanOneToken(file);
-		if (!parse(currentToken, file, TERMEXT)) {
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, TERMEXT)) {
 			break;
 		}
 		isParsed = true;
@@ -935,11 +938,11 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 	//FACTOR PARSE
 	case FACTOR:
 		if (currentToken.type == LPAREN) {
-			currentToken = ScanOneToken(file);
-			if (!parse(currentToken, file, EXPRESSION)) {
+			currentToken = ScanOneToken();
+			if (!parse(currentToken, EXPRESSION)) {
 				break;
 			}
-			currentToken = ScanOneToken(file);
+			currentToken = ScanOneToken();
 			if (currentToken.type != RPAREN) {
 				expectedToken = "')'";
 				break;
@@ -949,27 +952,27 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 			break;
 		}
 		if (currentToken.type == IDENTIFIER) {
-			currentToken = ScanOneToken(file);
-			if (parse(currentToken, file, PROCEDURE_CALL)) {
+			currentToken = ScanOneToken();
+			if (parse(currentToken, PROCEDURE_CALL)) {
 				isParsed = true;
 				expectedToken = "Factor";
 				break;
 			}
-			else if (parse(currentToken, file, NAME)) {
+			else if (parse(currentToken, NAME)) {
 				isParsed = true;
 				expectedToken = "Factor";
 				break;
 			}
 		}
 		else if (currentToken.type == MINUS) {
-			currentToken = ScanOneToken(file);
+			currentToken = ScanOneToken();
 			if (currentToken.type == INTVAL | currentToken.type == FLOATVAL) {
 				isParsed = true;
 				expectedToken = "Factor";
 				break;
 			}
 			else if (currentToken.type == IDENTIFIER) {
-				parse(currentToken, file, NAME);
+				parse(currentToken, NAME);
 				isParsed = true;
 				expectedToken = "Factor";
 				break;
@@ -1004,19 +1007,19 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 	//NAME PARSE
 	case NAME:
 		if (currentToken.type == LBRACKET) {
-			currentToken = ScanOneToken(file);
-			if (!parse(currentToken, file, EXPRESSION)) {
+			currentToken = ScanOneToken();
+			if (!parse(currentToken, EXPRESSION)) {
 				expectedToken = "Expression";
 				break;
 			}
-			currentToken = ScanOneToken(file);
+			currentToken = ScanOneToken();
 			if (currentToken.type != RBRACKET) {
 				expectedToken = "]";
 				break;
 			}
 		}
 		else {
-			UngetToken(currentToken.name, file);
+			UngetToken(currentToken.name);
 		}
 		isParsed = true;
 		expectedToken = "Name";
@@ -1024,18 +1027,18 @@ bool parse(token currentToken, FILE *file, nonTerminal nonTerminal) {
 
 	//ARGUMENT LIST PARSE
 	case ARGUMENT_LIST:
-		if (!parse(currentToken, file, EXPRESSION)) {
+		if (!parse(currentToken, EXPRESSION)) {
 			break;
 		}
-		nextToken = ScanOneToken(file);
+		nextToken = ScanOneToken();
 		if (nextToken.type == COMMA) {
-			currentToken = ScanOneToken(file);
-			if (!parse(currentToken, file, ARGUMENT_LIST)) {
+			currentToken = ScanOneToken();
+			if (!parse(currentToken, ARGUMENT_LIST)) {
 				break;
 			}
 		}
 		else {
-			UngetToken(nextToken.name, file);
+			UngetToken(nextToken.name);
 		}
 		isParsed = true;
 		expectedToken = "Argument list";
@@ -1061,11 +1064,9 @@ int main()
 	//Initialization
 	cout << "begin" << endl;
 	token currentToken = { BEGIN, "test" };
-	FILE* programFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\source.src", "r");
-
 	//Parse program
-	currentToken = ScanOneToken(programFile);
-	parse(currentToken, programFile, PROGRAM_MAIN);
+	currentToken = ScanOneToken();
+	parse(currentToken, PROGRAM_MAIN);
 	cout << "**End of program**" << endl;
 
 	//List symbols for debugging
@@ -1073,9 +1074,6 @@ int main()
 	cout << endl << "Symbols (name: type): ";
 	for (itr = symbolTable.begin(); itr != symbolTable.end(); itr++)
 	{
-		// itr works as a pointer to pair<string, double> 
-		// type itr->first stores the key part  and 
-		// itr->second stroes the value part 
 		cout << itr->second.name << ": " << itr->second.type << ",";
 	}
 	cout << endl << endl << "end!" << endl;
