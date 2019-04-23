@@ -12,10 +12,13 @@
 using namespace std;
 
 //File to compile
-FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\source.src", "r");
+FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\test1.src", "r");
 
 //Line number
 int lineNumber = 1;
+
+//Current Scope (0 = global)
+int scope = 0;
 
 //Token Types
 enum tokenType {
@@ -30,8 +33,14 @@ struct token {
 	string name;
 };
 
-//Symbol Table (Hash Table)
-std::unordered_map<std::string, token> symbolTable = { {"return", {RETURN,"return"}}, {"while",{WHILE,"while"}} , {"if",{IF,"if"}} , {"then",{THEN,"then"}} , {"else",{ELSE,"else"}} , {"for",{FOR,"for"}} , {"program",{PROGRAM,"program"}} , {"begin",{BEGIN,"begin"}},
+//Symbol table type is unordered_map, which stores values as a hash table. Here, the key is the token name (string), and the value stored is the token itself
+typedef std::unordered_map<std::string, token> symbol_table;
+
+//Symbol Table List (separated by scope)
+std::list<symbol_table> symbolTables = {};
+
+//Global Symbol Table (Hash Table)
+symbol_table globalSymbolTable = { {"return", {RETURN,"return"}}, {"while",{WHILE,"while"}} , {"if",{IF,"if"}} , {"then",{THEN,"then"}} , {"else",{ELSE,"else"}} , {"for",{FOR,"for"}} , {"program",{PROGRAM,"program"}} , {"begin",{BEGIN,"begin"}},
 {"end", {END,"end"}}, {"in",{IN,"in"}}, {"out",{OUT,"out"}}, {"inout",{INOUT,"inout"}}, {"global",{GLOBAL,"global"}}, {"is",{IS,"is"}}, {"true",{TRUE,"true"}}, {"false",{FALSE,"false"}}, {"procedure",{PROCEDURE,"procedure"}}, {"integer",{INTEGER,"integer"}}, 
 {"float",{FLOAT,"float"}}, {"char",{CHAR,"char"}}, {"string",{STRING,"string"} }, {"bool",{BOOL,"bool"}} };
 
@@ -248,16 +257,31 @@ token ScanOneToken()
 		tokenName.pop_back();
 		//Convert to lowercase (compiler is case insensitive)
 		std::transform(tokenName.begin(), tokenName.end(), tokenName.begin(), ::tolower);
-		//Check if token is in symbol table. If not, add it as an identifier
-		if (symbolTable.find(tokenName) != symbolTable.end())
+		//Check if token is in symbol tables. If not, add it as an identifier
+		bool inASymTable = false;
+		for (symbol_table symbolTable : symbolTables)
 		{
-			outToken = symbolTable[tokenName];
+			if (symbolTable.find(tokenName) != symbolTable.end())
+			{
+				outToken = symbolTable[tokenName];
+				inASymTable = true;
+				break;
+			}
 		}
-		else
+		if (!inASymTable)
 		{
 			outToken.type = IDENTIFIER;
 			outToken.name = tokenName;
-			symbolTable[tokenName] = outToken;
+			//If in global scope, add to global symbol table (bottom of stack)
+			if (scope == 0)
+			{
+				symbolTables.front()[tokenName] = outToken;
+			}
+			//If not in global scope, add to current scope symbol table (top of stack)
+			else 
+			{
+				symbolTables.back()[tokenName] = outToken;
+			}
 		}
 	}
 	//Number case
@@ -311,6 +335,8 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (!parse(currentToken, PROGRAM_HEADER)) {
 			break;
 		}
+		scope++;
+		symbolTables.push_back({});
 		currentToken = ScanOneToken();
 		if (!parse(currentToken, PROGRAM_BODY)) {
 			break;
@@ -322,6 +348,8 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		}
 		isParsed = true;
 		expectedToken = "Program main";
+		symbolTables.pop_back();
+		scope--;
 		break;
 	case PROGRAM_HEADER:
 		if (currentToken.type != PROGRAM) {
@@ -375,6 +403,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 	//DECLARATION PARSE
 	case DECLARATION:
 		if (currentToken.type == GLOBAL) {
+			scope = 0;
 			currentToken = ScanOneToken();
 		}
 		if (parse(currentToken, PROCEDURE_DECLARATION)) {
@@ -392,6 +421,9 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			expectedToken = ";";
 			break;
 		}
+		if (scope == 0) {
+			scope = symbolTables.size() - 1;
+		}
 		isParsed = true;
 		expectedToken = "Declaration";
 		break;
@@ -407,6 +439,8 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		}
 		isParsed = true;
 		expectedToken = "Procedure declaration";
+		scope--;
+		symbolTables.pop_back();
 		break;
 	case PROCEDURE_HEADER:
 		if (currentToken.type != PROCEDURE) {
@@ -417,20 +451,25 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			expectedToken = "Identifier";
 			break;
 		}
+		scope++;
+		symbolTables.push_back({});
 		currentToken = ScanOneToken();
 		if (currentToken.type != LPAREN) {
 			expectedToken = "(";
 			break;
 		}
 		currentToken = ScanOneToken();
-		if (!parse(currentToken, PARAMETER_LIST)) {
-			break;
-		}
-		currentToken = ScanOneToken();
 		if (currentToken.type != RPAREN) {
-			expectedToken = ")";
-			break;
+			parse(currentToken, PARAMETER_LIST);
+			currentToken = ScanOneToken();
+			if (currentToken.type != RPAREN) {
+				expectedToken = ")";
+				break;
+			}
 		}
+		/*if (!parse(currentToken, PARAMETER_LIST)) {
+			break;
+		}*/
 		isParsed = true;
 		expectedToken = "Procedure header";
 		break;
@@ -622,11 +661,13 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			break;
 		}
 		currentToken = ScanOneToken();
-		parse(currentToken, ARGUMENT_LIST);
-		currentToken = ScanOneToken();
 		if (currentToken.type != RPAREN) {
-			expectedToken = ")";
-			break;
+			parse(currentToken, ARGUMENT_LIST);
+			currentToken = ScanOneToken();
+			if (currentToken.type != RPAREN) {
+				expectedToken = ")";
+				break;
+			}
 		}
 		isParsed = true;
 		expectedToken = "Procedure call";
@@ -1059,10 +1100,12 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 	return isParsed;
 }
 
+//Main
 int main()
 {
 	//Initialization
 	cout << "begin" << endl;
+	symbolTables.push_back(globalSymbolTable);
 	token currentToken = { BEGIN, "test" };
 	//Parse program
 	currentToken = ScanOneToken();
@@ -1070,11 +1113,14 @@ int main()
 	cout << "**End of program**" << endl;
 
 	//List symbols for debugging
-	unordered_map<string, token>::iterator itr;
-	cout << endl << "Symbols (name: type): ";
-	for (itr = symbolTable.begin(); itr != symbolTable.end(); itr++)
+	cout << endl << "Global Symbols (name: type): " << endl;
+	for (symbol_table symbolTable : symbolTables) 
 	{
-		cout << itr->second.name << ": " << itr->second.type << ",";
+		symbol_table::iterator itr;
+		for (itr = symbolTable.begin(); itr != symbolTable.end(); itr++)
+		{
+			cout << itr->second.name << ": " << itr->second.type << ",";
+		}
 	}
 	cout << endl << endl << "end!" << endl;
 	return 0;
