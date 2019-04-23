@@ -257,27 +257,27 @@ token ScanOneToken()
 		tokenName.pop_back();
 		//Convert to lowercase (compiler is case insensitive)
 		std::transform(tokenName.begin(), tokenName.end(), tokenName.begin(), ::tolower);
-		//Check if token is in symbol tables. If not, add it as an identifier
-		bool inASymTable = false;
-		for (symbol_table symbolTable : symbolTables)
+		//Check if token is in local symbol table
+		if (symbolTables.back().find(tokenName) != symbolTables.back().end()) 
 		{
-			if (symbolTable.find(tokenName) != symbolTable.end())
-			{
-				outToken = symbolTable[tokenName];
-				inASymTable = true;
-				break;
-			}
+			outToken = symbolTables.back()[tokenName];
 		}
-		if (!inASymTable)
+		//If not local, check if token is in global symbol table
+		else if (symbolTables.front().find(tokenName) != symbolTables.front().end())
+		{
+			outToken = symbolTables.front()[tokenName];
+		}
+		//If not in either symbol table, give it the identifier type
+		else
 		{
 			outToken.type = IDENTIFIER;
 			outToken.name = tokenName;
-			//If in global scope, add to global symbol table (bottom of stack)
+			//If currently in global scope, add to global symbol table (bottom of stack)
 			if (scope == 0)
 			{
 				symbolTables.front()[tokenName] = outToken;
 			}
-			//If not in global scope, add to current scope symbol table (top of stack)
+			//If not currently in global scope, add to local symbol table (top of stack)
 			else 
 			{
 				symbolTables.back()[tokenName] = outToken;
