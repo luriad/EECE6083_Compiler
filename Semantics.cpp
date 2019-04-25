@@ -1,6 +1,6 @@
 /*EECE6083: SEMANTICS
  * Programmer: David Luria
- * Date updated: 4/23/2019
+ * Date updated: 4/25/2019
  */
 
 #include <iostream>
@@ -12,13 +12,14 @@
 using namespace std;
 
 //File to compile
-FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\test1.src", "r");
+FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\iterativeFib.src", "r");
 
 //Line number
 int lineNumber = 1;
 
 //Current Scope (0 = global)
 int scope = 0;
+bool declaration = false;
 
 //Token Types
 enum tokenType {
@@ -31,6 +32,8 @@ enum tokenType {
 struct token {
 	tokenType type;
 	string name;
+	bool declared = false;
+	tokenType variableType;
 };
 
 //Symbol table type is unordered_map, which stores values as a hash table. Here, the key is the token name (string), and the value stored is the token itself
@@ -42,7 +45,8 @@ std::list<symbol_table> symbolTables = {};
 //Global Symbol Table (Hash Table)
 symbol_table globalSymbolTable = { {"return", {RETURN,"return"}}, {"while",{WHILE,"while"}} , {"if",{IF,"if"}} , {"then",{THEN,"then"}} , {"else",{ELSE,"else"}} , {"for",{FOR,"for"}} , {"program",{PROGRAM,"program"}} , {"begin",{BEGIN,"begin"}},
 {"end", {END,"end"}}, {"in",{IN,"in"}}, {"out",{OUT,"out"}}, {"inout",{INOUT,"inout"}}, {"global",{GLOBAL,"global"}}, {"is",{IS,"is"}}, {"true",{TRUE,"true"}}, {"false",{FALSE,"false"}}, {"procedure",{PROCEDURE,"procedure"}}, {"integer",{INTEGER,"integer"}}, 
-{"float",{FLOAT,"float"}}, {"char",{CHAR,"char"}}, {"string",{STRING,"string"} }, {"bool",{BOOL,"bool"}} };
+{"float",{FLOAT,"float"}}, {"char",{CHAR,"char"}}, {"string",{STRING,"string"} }, {"bool",{BOOL,"bool"}}, {"getbool",{IDENTIFIER,"getbool",true}}, {"getinteger",{IDENTIFIER,"getinteger",true}}, {"gefloat",{IDENTIFIER,"getfloat",true}}, {"getstring",{IDENTIFIER,"getstring",true}},
+{"putbool",{IDENTIFIER,"putbool",true}}, {"putinteger",{IDENTIFIER,"putinteger",true}}, {"putfloat",{IDENTIFIER,"putfloat",true}}, {"putstring",{IDENTIFIER,"putstring",true}}, {"sqrt",{IDENTIFIER,"sqrt",true}}, };
 
 //Nonterminals
 enum nonTerminal {
@@ -272,15 +276,20 @@ token ScanOneToken()
 		{
 			outToken.type = IDENTIFIER;
 			outToken.name = tokenName;
+			if (declaration) {
+				outToken.declared = true;
+			}
 			//If currently in global scope, add to global symbol table (bottom of stack)
 			if (scope == 0)
 			{
 				symbolTables.front()[tokenName] = outToken;
+				//cout << tokenName << " added to global symbol table" << endl;
 			}
 			//If not currently in global scope, add to local symbol table (top of stack)
 			else 
 			{
 				symbolTables.back()[tokenName] = outToken;
+				//cout << tokenName << " added to local symbol table " << scope << endl;
 			}
 		}
 	}
@@ -322,12 +331,17 @@ void UngetToken(string token) {
 	}
 }
 
+//Scope Decelaration Error Message
+void ScopeDeclarationError(string tokenName) {
+	cout << endl << "ERROR: Identifier " << tokenName << " not defined in this scope at line " << lineNumber << endl << endl;
+}
+
 //Parser Method
 bool parse(token currentToken, nonTerminal nonTerminal) {
 	bool isParsed = false;
 	string expectedToken;
 	token nextToken;
-	cout << "Parsing " << nonTerminal << " at line " << lineNumber <<endl;
+	//cout << "Parsing " << nonTerminal << " at line " << lineNumber <<endl;
 	switch (nonTerminal) {
 
 	//PROGRAM PARSE
@@ -335,8 +349,6 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (!parse(currentToken, PROGRAM_HEADER)) {
 			break;
 		}
-		scope++;
-		symbolTables.push_back({});
 		currentToken = ScanOneToken();
 		if (!parse(currentToken, PROGRAM_BODY)) {
 			break;
@@ -356,11 +368,15 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			expectedToken = "program";
 			break;
 		}
+		declaration = true;
 		currentToken = ScanOneToken();
 		if (currentToken.type != IDENTIFIER) {
 			expectedToken = "identifier";
 			break;
 		}
+		declaration = false;
+		scope++;
+		symbolTables.push_back({ {currentToken.name, {currentToken}} });
 		currentToken = ScanOneToken();
 		if (currentToken.type != IS) {
 			expectedToken = "is";
@@ -446,13 +462,15 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (currentToken.type != PROCEDURE) {
 			break;
 		}
+		declaration = true;
 		currentToken = ScanOneToken();
 		if (currentToken.type != IDENTIFIER) {
 			expectedToken = "Identifier";
 			break;
 		}
+		declaration = false;
 		scope++;
-		symbolTables.push_back({});
+		symbolTables.push_back({ {currentToken.name, {currentToken}} });
 		currentToken = ScanOneToken();
 		if (currentToken.type != LPAREN) {
 			expectedToken = "(";
@@ -550,11 +568,13 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (!parse(currentToken, TYPE_MARK)) {
 			break;
 		}
+		declaration = true;
 		currentToken = ScanOneToken();
 		if (currentToken.type != IDENTIFIER) {
 			expectedToken = "Identifier";
 			break;
 		}
+		declaration = false;
 		nextToken = ScanOneToken();
 		if (nextToken.type == LBRACKET) {
 			currentToken = ScanOneToken();
@@ -620,6 +640,9 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 	//STATEMENT PARSE
 	case STATEMENT:
 		if (currentToken.type == IDENTIFIER) {
+			if (!currentToken.declared) {
+				ScopeDeclarationError(currentToken.name);
+			}
 			currentToken = ScanOneToken();
 			parse(currentToken, NAME);
 			currentToken = ScanOneToken();
@@ -772,6 +795,9 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		currentToken = ScanOneToken();
 		if (currentToken.type != IDENTIFIER) {
 			expectedToken = "Identifier";
+		}
+		else if (!currentToken.declared) {
+			ScopeDeclarationError(currentToken.name);
 		}
 		currentToken = ScanOneToken();
 		if (!parse(currentToken, ASSIGNMENT_STATEMENT)) {
@@ -993,6 +1019,9 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			break;
 		}
 		if (currentToken.type == IDENTIFIER) {
+			if (!currentToken.declared) {
+				ScopeDeclarationError(currentToken.name);
+			}
 			currentToken = ScanOneToken();
 			if (parse(currentToken, PROCEDURE_CALL)) {
 				isParsed = true;
@@ -1013,6 +1042,9 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 				break;
 			}
 			else if (currentToken.type == IDENTIFIER) {
+				if (!currentToken.declared) {
+					ScopeDeclarationError(currentToken.name);
+				}
 				parse(currentToken, NAME);
 				isParsed = true;
 				expectedToken = "Factor";
@@ -1092,7 +1124,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		break;
 	}
 	if (isParsed & expectedToken != "") {
-		cout << expectedToken << " " << currentToken.name << " parsed successfully at line " << lineNumber << endl;
+		//cout << expectedToken << " " << currentToken.name << " parsed successfully at line " << lineNumber << endl;
 	}
 	else if (expectedToken != "") {
 		cout << "BLURGHARG *Dies* (Expected " << expectedToken << " got " << currentToken.name << ")" << " at line " << lineNumber << endl;
@@ -1113,14 +1145,18 @@ int main()
 	cout << "**End of program**" << endl;
 
 	//List symbols for debugging
+	scope = 0;
 	cout << endl << "Global Symbols (name: type): " << endl;
 	for (symbol_table symbolTable : symbolTables) 
 	{
+		cout << "Table " << scope << ": ";
 		symbol_table::iterator itr;
 		for (itr = symbolTable.begin(); itr != symbolTable.end(); itr++)
 		{
 			cout << itr->second.name << ": " << itr->second.type << ",";
 		}
+		cout << endl;
+		scope++;
 	}
 	cout << endl << endl << "end!" << endl;
 	return 0;
