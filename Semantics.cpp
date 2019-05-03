@@ -12,7 +12,7 @@
 using namespace std;
 
 //File to compile
-FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\vectorOps.src", "r");
+FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\source.src", "r");
 
 //Line number
 int lineNumber = 1;
@@ -58,11 +58,12 @@ enum nonTerminal {
 
 //Current Scope (0 = global)
 int scope = 0;
-string procedureName;
+list<string> procedureNames = {};
 tokenType currentVariableType;
 string tokenNameToReference;
 token tokenToReference;
 list<tokenType> parameterTypeList;
+bool resyncFinish = false;
 
 //Scanner Method
 token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
@@ -123,6 +124,9 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 						if (currentChar == '/') {
 							nestLevel--;
 						}
+					}
+					else if (currentChar == EOF) {
+						break;
 					}
 				}
 				currentChar = getc(file);
@@ -334,6 +338,9 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 	return outToken;
 }
 
+//Parser Declaration
+bool parse(token currentToken, nonTerminal nonTerminal);
+
 //Unget Token
 void UngetToken(string token) {
 	for (std::string::reverse_iterator rit = token.rbegin(); rit!=token.rend(); rit++) {
@@ -342,6 +349,45 @@ void UngetToken(string token) {
 }
 
 /*Errors*/
+
+//Resync method
+void resync(token currentToken) {
+	while (currentToken.type != BEGIN & currentToken.type != ENDFILE & currentToken.type != END) {
+		currentToken = ScanOneToken();
+	}
+	if (currentToken.type == BEGIN & scope > 1) {
+		cout << "Resynced to line " << lineNumber << endl;
+		parse(currentToken, PROCEDURE_BODY);
+	}
+	else if (currentToken.type == BEGIN & scope == 1) {
+		cout << "Resynced to line " << lineNumber << endl;
+		parse(currentToken, PROGRAM_BODY);
+	}
+	else if (currentToken.type == END) {
+		currentToken = ScanOneToken();
+		if (currentToken.type == PROCEDURE) {
+			tokenToReference = symbolTables.back()[procedureNames.back()];
+			scope--;
+			symbolTables.pop_back();
+			symbolTables.back()[procedureNames.back()] = tokenToReference;
+			procedureNames.pop_back();
+		}
+		else if (currentToken.type == PROGRAM) {
+			currentToken = ScanOneToken();
+			if (currentToken.type != PERIOD) {
+				cout << "ERROR: Period expected at line " << lineNumber << endl;
+			}
+			symbolTables.pop_back();
+			scope--;
+		}
+		resync(currentToken);
+	}
+	else if (currentToken.type == ENDFILE) {
+		cout << "No resync point (begin) found" << endl;
+	}
+	resyncFinish = true;
+}
+
 //Scope Decelaration Error Message
 void ScopeDeclarationError(string tokenName) {
 	cout << endl << "ERROR: Identifier " << tokenName << " not defined in this scope at line " << lineNumber << endl << endl;
@@ -481,10 +527,11 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		}
 		isParsed = true;
 		expectedToken = "Procedure declaration";
-		tokenToReference = symbolTables.back()[procedureName];
+		tokenToReference = symbolTables.back()[procedureNames.back()];
 		scope--;
 		symbolTables.pop_back();
-		symbolTables.back()[procedureName] = tokenToReference;
+		symbolTables.back()[procedureNames.back()] = tokenToReference;
+		procedureNames.pop_back();
 		break;
 	case PROCEDURE_HEADER:
 		if (currentToken.type != PROCEDURE) {
@@ -502,7 +549,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			break;
 		}
 		tokenNameToReference = currentToken.name;
-		procedureName = currentToken.name;
+		procedureNames.push_back(currentToken.name);
 		scope++;
 		symbolTables.push_back({ {currentToken.name, {currentToken}} });
 		currentToken = ScanOneToken();
@@ -1323,11 +1370,16 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		expectedToken = "parsable nonterminal";
 		break;
 	}
+	if (resyncFinish) {
+		expectedToken = "";
+	}
 	if (isParsed & expectedToken != "") {
 		//cout << expectedToken << " " << currentToken.name << " parsed successfully at line " << lineNumber << endl;
 	}
 	else if (expectedToken != "") {
-		cout << "BLURGHARG *Dies* (Expected " << expectedToken << " got " << currentToken.name << ")" << " at line " << lineNumber << endl;
+		cout << endl <<  "ERROR: Expected " << expectedToken << ", got " << currentToken.name << " at line " << lineNumber << endl
+			<< "Resyncing..." << endl << endl;
+		resync(currentToken);
 	}
 	return isParsed;
 }
