@@ -12,7 +12,7 @@
 using namespace std;
 
 //File to compile
-FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\source.src", "r");
+FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\vectorOps.src", "r");
 
 //Line number
 int lineNumber = 1;
@@ -1249,7 +1249,6 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 				ScopeDeclarationError(currentToken.name);
 			}
 			currentVariableType = currentToken.variableType;
-			cout << "Current variable type: " << currentToken.variableType << endl;
 			currentToken = ScanOneToken();
 			if (parse(currentToken, PROCEDURE_CALL)) {
 				isParsed = true;
