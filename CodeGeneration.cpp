@@ -12,7 +12,7 @@
 using namespace std;
 
 //File to compile
-FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\vectorOps.src", "r");
+FILE* file;
 
 //Line number
 int lineNumber = 1;
@@ -1384,9 +1384,10 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 }
 
 //Main
-int main()
+int main(int argc, char **argv)
 {
 	//Initialization
+	file = fopen(argv[1], "r");
 	cout << "begin" << endl;
 	symbolTables.push_back(globalSymbolTable);
 	token currentToken = { BEGIN, "test" };
@@ -1397,14 +1398,14 @@ int main()
 
 	//List symbols for debugging
 	scope = 0;
-	cout << endl << "Global Symbols (name: type): " << endl;
+	cout << endl << "Global Symbols (name: type): " << endl << endl;
 	for (symbol_table symbolTable : symbolTables) 
 	{
-		cout << "Table " << scope << ": ";
+		cout << "Table " << scope << ":" << endl;;
 		symbol_table::iterator itr;
 		for (itr = symbolTable.begin(); itr != symbolTable.end(); itr++)
 		{
-			cout << itr->second.name << ": " << itr->second.type << ",";
+			cout << itr->second.name << ": " << itr->second.type << endl;
 		}
 		cout << endl;
 		scope++;
