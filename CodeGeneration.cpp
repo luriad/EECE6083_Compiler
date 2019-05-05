@@ -1,9 +1,10 @@
-/*EECE6083: CODE GENERATION
+/*EECE6083: PARSER
  * Programmer: David Luria
  * Date updated: 5/3/2019
  */
 
 #include <iostream>
+#include <fstream>
 #include <stdio.h>
 #include <string>
 #include <list>
@@ -12,7 +13,9 @@
 using namespace std;
 
 //File to compile
-FILE* file;
+FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\math.src", "r");
+ofstream outFile;
+
 
 //Line number
 int lineNumber = 1;
@@ -20,8 +23,8 @@ int lineNumber = 1;
 //Token Types
 enum tokenType {
 	SEMICOLON = ';', LPAREN = '(', RPAREN = ')', COLON = ':', PLUS = '+', MINUS = '-', STAR = '*', SLASH = '/', LBRACKET = '[', RBRACKET = ']', LBRACE = '{', RBRACE = '}', OR = '|', AND = '&', NOT = '!', COMMA = ',', MODULUS = '%',
-	LESSTHAN = '<', GREATERTHAN = '>', SINGLEQUOTE = '\'', DOUBLEQUOTE = '"', PERIOD = '.', ASSIGN = 257, EQUAL, LESSTHANEQUAL, GREATERTHANEQUAL, NOTEQUAL, RETURN, WHILE, IF, THEN, ELSE, FOR, PROGRAM, BEGIN, END, IN, OUT, INOUT, GLOBAL,
-	IS, TRUE, FALSE, BOOLVAL, PROCEDURE, INTEGER, FLOAT, CHAR, STRING, BOOL, IDENTIFIER, INTVAL, FLOATVAL, STRINGVAL, UNKNOWN, ENDFILE
+	LESSTHAN = '<', GREATERTHAN = '>', SINGLEQUOTE = '\'', DOUBLEQUOTE = '"', PERIOD = '.', ASSIGN = 257, EQUAL, LESSTHANEQUAL, GREATERTHANEQUAL, NOTEQUAL, RETURN, WHILE, IF, THEN, ELSE, FOR, PROGRAM, BEGIN, END, GLOBAL,
+	IS, TRUE, FALSE, BOOLVAL, PROCEDURE, INTEGER, FLOAT, CHAR, STRING, BOOL, IDENTIFIER, INTVAL, FLOATVAL, STRINGVAL, VARIABLE, UNKNOWN, ENDFILE
 };
 
 //Token structure
@@ -31,9 +34,9 @@ struct token {
 	bool declared = false;
 	tokenType variableType = UNKNOWN;
 	tokenType procedureOutType = UNKNOWN;
-	int lowerBound = 0;
-	int upperBound = 0;
+	int arraySize = 0;
 	list<tokenType> parameterTypes;
+	int memoryLocation;
 };
 
 //Symbol table type is unordered_map, which stores values as a hash table. Here, the key is the token name (string), and the value stored is the token itself
@@ -44,15 +47,15 @@ std::list<symbol_table> symbolTables = {};
 
 //Global Symbol Table (Hash Table)
 symbol_table globalSymbolTable = { {"return", {RETURN,"return"}}, {"while",{WHILE,"while"}} , {"if",{IF,"if"}} , {"then",{THEN,"then"}} , {"else",{ELSE,"else"}} , {"for",{FOR,"for"}} , {"program",{PROGRAM,"program"}} , {"begin",{BEGIN,"begin"}},
-{"end", {END,"end"}}, {"in",{IN,"in"}}, {"out",{OUT,"out"}}, {"inout",{INOUT,"inout"}}, {"global",{GLOBAL,"global"}}, {"is",{IS,"is"}}, {"true",{TRUE,"true"}}, {"false",{FALSE,"false"}}, {"procedure",{PROCEDURE,"procedure"}}, {"integer",{INTEGER,"integer"}}, 
-{"float",{FLOAT,"float"}}, {"char",{CHAR,"char"}}, {"string",{STRING,"string"} }, {"bool",{BOOL,"bool"}}, {"getbool",{IDENTIFIER,"getbool",true,PROCEDURE,BOOLVAL,0,0,{BOOLVAL}}}, {"getinteger",{IDENTIFIER,"getinteger",true,PROCEDURE,INTVAL,0,0,{INTVAL}}},
-{"gefloat",{IDENTIFIER,"getfloat",true,PROCEDURE,FLOATVAL,0,0,{FLOATVAL}}},{"getstring",{IDENTIFIER,"getstring",true,PROCEDURE,STRINGVAL,0,0,{STRINGVAL}}}, {"putbool",{IDENTIFIER,"putbool",true,PROCEDURE,UNKNOWN,0,0,{BOOLVAL}}}, 
-{"putinteger",{IDENTIFIER,"putinteger",true,PROCEDURE,UNKNOWN,0,0,{INTVAL}}}, {"putfloat",{IDENTIFIER,"putfloat",true,PROCEDURE,UNKNOWN,0,0,{FLOATVAL}}}, {"putstring",{IDENTIFIER,"putstring",true,PROCEDURE,UNKNOWN,0,0,{STRINGVAL}}},
-{"putchar",{IDENTIFIER,"putchar",true,PROCEDURE,UNKNOWN,0,0,{STRINGVAL}}}, {"sqrt",{IDENTIFIER,"sqrt",true,PROCEDURE,FLOATVAL,0,0,{FLOATVAL}}}};
+{"end", {END,"end"}}, {"global",{GLOBAL,"global"}}, {"is",{IS,"is"}}, {"true",{TRUE,"true"}}, {"false",{FALSE,"false"}}, {"procedure",{PROCEDURE,"procedure"}}, {"integer",{INTEGER,"integer"}},
+{"float",{FLOAT,"float"}}, {"char",{CHAR,"char"}}, {"string",{STRING,"string"} }, {"bool",{BOOL,"bool"}}, {"getbool",{IDENTIFIER,"getbool",true,PROCEDURE,BOOLVAL,0,{}}}, {"getinteger",{IDENTIFIER,"getinteger",true,PROCEDURE,INTVAL,0,{}}},
+{"gefloat",{IDENTIFIER,"getfloat",true,PROCEDURE,FLOATVAL,0,{}}},{"getstring",{IDENTIFIER,"getstring",true,PROCEDURE,STRINGVAL,0,{}}}, {"putbool",{IDENTIFIER,"putbool",true,PROCEDURE,BOOLVAL,0,{BOOLVAL}}},
+{"putinteger",{IDENTIFIER,"putinteger",true,PROCEDURE,BOOLVAL,0,{INTVAL}}}, {"putfloat",{IDENTIFIER,"putfloat",true,PROCEDURE,BOOLVAL,0,{FLOATVAL}}}, {"putstring",{IDENTIFIER,"putstring",true,PROCEDURE,BOOLVAL,0,{STRINGVAL}}},
+{"putchar",{IDENTIFIER,"putchar",true,PROCEDURE,BOOLVAL,0,{STRINGVAL}}}, {"sqrt",{IDENTIFIER,"sqrt",true,PROCEDURE,FLOATVAL,0,{INTVAL}}}, {"variable", {VARIABLE,"variable"}} };
 
 //Nonterminals
 enum nonTerminal {
-	PROGRAM_MAIN, PROGRAM_HEADER, PROGRAM_BODY, DECLARATION, PROCEDURE_DECLARATION, PROCEDURE_HEADER, PARAMETER_LIST, PARAMETER, PROCEDURE_BODY, VARIABLE_DECLARATION, TYPE_DECLARATION, TYPE_MARK, BOUND, STATEMENT, PROCEDURE_CALL, 
+	PROGRAM_MAIN, PROGRAM_HEADER, PROGRAM_BODY, DECLARATION, PROCEDURE_DECLARATION, PROCEDURE_HEADER, PARAMETER_LIST, PARAMETER, PROCEDURE_BODY, VARIABLE_DECLARATION, TYPE_DECLARATION, TYPE_MARK, BOUND, STATEMENT, PROCEDURE_CALL,
 	ASSIGNMENT_STATEMENT, DESTINATION, IF_STATEMENT, LOOP_STATEMENT, RETURN_STATEMENT, EXPRESSION, EXPRESSIONEXT, ARITHOP, ARITHOPEXT, RELATION, RELATIONEXT, TERM, TERMEXT, FACTOR, NAME, ARGUMENT_LIST
 };
 
@@ -79,6 +82,7 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 	{
 		if (currentChar == '\n') {
 			lineNumber++;
+			cout << "At line " << lineNumber << endl;
 		}
 		currentChar = getc(file);
 	}
@@ -98,6 +102,7 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 				}
 				//Skip remaining whitespace
 				lineNumber++;
+				cout << "At line " << lineNumber << endl;
 				while (isspace(currentChar)) {
 					currentChar = getc(file);
 				}
@@ -112,6 +117,7 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 					currentChar = getc(file);
 					if (currentChar == '\n') {
 						lineNumber++;
+						cout << "At line " << lineNumber << endl;
 					}
 					else if (currentChar == '/') {
 						currentChar = getc(file);
@@ -134,6 +140,7 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 				while (isspace(currentChar)) {
 					if (currentChar == '\n') {
 						lineNumber++;
+						cout << "At line " << lineNumber << endl;
 					}
 					currentChar = getc(file);
 				}
@@ -292,7 +299,7 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 			outToken.name = outToken.name;
 			if (declaration) {
 				outToken.declared = true;
-				cout << outToken.name << " declared" << endl;
+				//cout << outToken.name << " declared" << endl;
 			}
 			//If currently in global scope, add to global symbol table (bottom of stack)
 			if (scope == 0)
@@ -301,7 +308,7 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 				//cout << tokenName << " added to global symbol table" << endl;
 			}
 			//If not currently in global scope, add to local symbol table (top of stack)
-			else 
+			else
 			{
 				symbolTables.back()[outToken.name] = outToken;
 				//cout << tokenName << " added to local symbol table " << scope << endl;
@@ -335,6 +342,7 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 		ungetc(currentChar, file);
 		outToken.name.pop_back();
 	}
+	//cout << outToken.type << " " << outToken.name << " scanned at line " << lineNumber << endl;
 	return outToken;
 }
 
@@ -343,8 +351,37 @@ bool parse(token currentToken, nonTerminal nonTerminal);
 
 //Unget Token
 void UngetToken(string token) {
-	for (std::string::reverse_iterator rit = token.rbegin(); rit!=token.rend(); rit++) {
+	for (std::string::reverse_iterator rit = token.rbegin(); rit != token.rend(); rit++) {
 		ungetc(*rit, file);
+	}
+}
+
+//Register and Memory Stacks
+list<int> mm;
+int lastMMLoc;
+list<int> reg;
+int lastReg;
+
+int findRegorMem(list<int> regOrMem, int size) {
+	int loc = 0;
+	bool found = false;
+	do {
+		if (find(regOrMem.begin(), regOrMem.end(), loc) != regOrMem.end()) {
+			found = true;
+		}
+		else {
+			loc++;
+		}
+	} while (!found);
+	for (int i = loc; i < loc + size; i++) {
+		regOrMem.push_back(i);
+	}
+	return loc;
+}
+
+void clearReg(list<int> regs, int regNum, int size) {
+	for (int i = regNum; i < regNum + size; i++) {
+		regs.erase(find(regs.begin(), regs.end(), regNum));
 	}
 }
 
@@ -405,12 +442,13 @@ void negationError(token errorToken) {
 
 //Type Error
 void typeError(tokenType unexpectedType) {
-	cout << "ERROR: Unexpected " << unexpectedType  << " at line " << lineNumber << endl;
+	cout << "ERROR: Unexpected " << unexpectedType << " at line " << lineNumber << endl;
 }
 
 //Parser Method
 bool parse(token currentToken, nonTerminal nonTerminal) {
 	tokenType typeToCompare = UNKNOWN;
+	string tokenNameToCompare;
 	bool isParsed = false;
 	string expectedToken;
 	token nextToken;
@@ -418,7 +456,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 	//cout << "Parsing " << nonTerminal << " at line " << lineNumber <<endl;
 	switch (nonTerminal) {
 
-	//PROGRAM PARSE
+		//PROGRAM PARSE
 	case PROGRAM_MAIN:
 		if (!parse(currentToken, PROGRAM_HEADER)) {
 			break;
@@ -488,17 +526,17 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		expectedToken = "Program body";
 		break;
 
-	//DECLARATION PARSE
+		//DECLARATION PARSE
 	case DECLARATION:
 		if (currentToken.type == GLOBAL) {
 			scope = 0;
 			currentToken = ScanOneToken();
 		}
 		if (parse(currentToken, PROCEDURE_DECLARATION)) {
-			cout << "Procedure Declaration" << endl;
+			//cout << "Procedure Declaration" << endl;
 		}
 		else if (parse(currentToken, VARIABLE_DECLARATION)) {
-			cout << "Variable Declaration" << endl;
+			//cout << "Variable Declaration" << endl;
 		}
 		else {
 			expectedToken = "Declaration";
@@ -516,7 +554,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		expectedToken = "Declaration";
 		break;
 
-	//PROCEDURE DECLARATION PARSE
+		//PROCEDURE DECLARATION PARSE
 	case PROCEDURE_DECLARATION:
 		if (!parse(currentToken, PROCEDURE_HEADER)) {
 			break;
@@ -541,7 +579,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (currentToken.variableType != PROCEDURE && scope != 0) {
 			redeclarationError(symbolTables.back()[currentToken.name]);
 		}
-		else if (currentToken.variableType != currentVariableType && scope == 0) {
+		else if (currentToken.variableType != PROCEDURE && scope == 0) {
 			redeclarationError(symbolTables.back()[currentToken.name]);
 		}
 		if (currentToken.type != IDENTIFIER) {
@@ -552,6 +590,17 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		procedureNames.push_back(currentToken.name);
 		scope++;
 		symbolTables.push_back({ {currentToken.name, {currentToken}} });
+		outFile << currentToken.name << ":" << endl;
+		currentToken = ScanOneToken();
+		if (currentToken.type != COLON) {
+			expectedToken = ":";
+			break;
+		}
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, TYPE_MARK)) {
+			break;
+		}
+		symbolTables.back()[tokenNameToReference].procedureOutType = currentVariableType;
 		currentToken = ScanOneToken();
 		if (currentToken.type != LPAREN) {
 			expectedToken = "(";
@@ -566,9 +615,6 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 				break;
 			}
 		}
-		/*if (!parse(currentToken, PARAMETER_LIST)) {
-			break;
-		}*/
 		isParsed = true;
 		expectedToken = "Procedure header";
 		break;
@@ -603,7 +649,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		expectedToken = "Procedure body";
 		break;
 
-	//PARAMETER LIST PARSE
+		//PARAMETER LIST PARSE
 	case PARAMETER_LIST:
 		if (!parse(currentToken, PARAMETER)) {
 			break;
@@ -627,56 +673,53 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			break;
 		}
 		if (scope != 0) {
-			symbolTables.back()[tokenNameToReference].parameterTypes.push_back(currentVariableType);
+			symbolTables.back()[procedureNames.back()].parameterTypes.push_back(currentVariableType);
 		}
 		else {
-			symbolTables.front()[tokenNameToReference].parameterTypes.push_back(currentVariableType);
-		}
-		currentToken = ScanOneToken();
-		if (currentToken.type == IN) {
-			cout << "In parameter" << endl;
-		}
-		else if (currentToken.type == OUT) {
-			cout << "Out parameter" << endl;
-			if (scope != 0) {
-				symbolTables.back()[tokenNameToReference].procedureOutType = currentVariableType;
-			}
-			else {
-				symbolTables.front()[tokenNameToReference].procedureOutType = currentVariableType;
-			}
-		}
-		else if (currentToken.type == INOUT) {
-			cout << "Inout parameter" << endl;
-		}
-		else {
-			expectedToken = "In/out";
-			break;
+			symbolTables.front()[procedureNames.back()].parameterTypes.push_back(currentVariableType);
 		}
 		isParsed = true;
 		expectedToken = "Parameter";
 		break;
 
-	//VARIABLE DECLARATION PARSE
+		//VARIABLE DECLARATION PARSE
 	case VARIABLE_DECLARATION:
-		if (!parse(currentToken, TYPE_MARK)) {
+		if (currentToken.type != VARIABLE) {
 			break;
 		}
-		currentToken = ScanOneToken(true, currentVariableType);
-		if (currentToken.variableType != currentVariableType && scope != 0) {
+		currentToken = ScanOneToken(true);
+		if (currentToken.variableType != UNKNOWN && scope != 0) {
 			redeclarationError(symbolTables.back()[currentToken.name]);
 		}
-		else if (currentToken.variableType != currentVariableType && scope == 0) {
-			redeclarationError(symbolTables.back()[currentToken.name]);
+		else if (currentToken.variableType != UNKNOWN && scope == 0) {
+			redeclarationError(symbolTables.front()[currentToken.name]);
 		}
 		if (currentToken.type != IDENTIFIER) {
 			expectedToken = "Identifier";
 			break;
 		}
+		tokenNameToCompare = currentToken.name;
+		currentToken = ScanOneToken();
+		if (currentToken.type != COLON) {
+			expectedToken = ":";
+			break;
+		}
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, TYPE_MARK)) {
+			break;
+		}
+		if (scope != 0) {
+			symbolTables.back()[tokenNameToCompare].variableType = currentVariableType;
+		}
+		else {
+			symbolTables.front()[tokenNameToCompare].variableType = currentVariableType;
+		}
 		nextToken = ScanOneToken();
 		if (nextToken.type == LBRACKET) {
 			tokenNameToReference = currentToken.name;
 			currentToken = ScanOneToken();
-			if (!parse(currentToken, BOUND)) {
+			if (currentToken.type != INTVAL) {
+				expectedToken = "integer";
 				break;
 			}
 			currentToken = ScanOneToken();
@@ -692,26 +735,26 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		expectedToken = "Variable Declaration";
 		break;
 
-	//TYPE MARK PARSE
+		//TYPE MARK PARSE
 	case TYPE_MARK:
 		if (currentToken.type == INTEGER) {
-			cout << "Integer type mark" << endl;
+			//cout << "Integer type mark" << endl;
 			currentVariableType = INTVAL;
 		}
 		else if (currentToken.type == FLOAT) {
-			cout << "Float type mark" << endl;
+			//cout << "Float type mark" << endl;
 			currentVariableType = FLOATVAL;
 		}
 		else if (currentToken.type == STRING) {
-			cout << "String type mark" << endl;
+			//cout << "String type mark" << endl;
 			currentVariableType = STRINGVAL;
 		}
 		else if (currentToken.type == BOOL) {
-			cout << "Bool type mark" << endl;
+			//cout << "Bool type mark" << endl;
 			currentVariableType = BOOLVAL;
 		}
 		else if (currentToken.type == CHAR) {
-			cout << "Char type mark" << endl;
+			//cout << "Char type mark" << endl;
 			currentVariableType = STRINGVAL;
 		}
 		else {
@@ -722,75 +765,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		expectedToken = "Type mark";
 		break;
 
-	//BOUND PARSE
-	case BOUND:
-		//if (!parse(currentToken, EXPRESSION)) {
-		//	break;
-		//}
-		if (currentToken.type == MINUS) {
-			currentToken = ScanOneToken();
-			typeToCompare = MINUS;
-		}
-		if (currentToken.type != INTVAL) {
-			expectedToken = "Integer";
-			break;
-		}
-		if (scope != 0) {
-			if (typeToCompare != MINUS) {
-				symbolTables.back()[tokenNameToReference].lowerBound = stoi(currentToken.name);
-
-			}
-			else {
-				symbolTables.back()[tokenNameToReference].lowerBound = -stoi(currentToken.name);
-			}
-		}
-		else{
-			if (typeToCompare != MINUS) {
-				symbolTables.front()[tokenNameToReference].lowerBound = stoi(currentToken.name);
-			}
-			else {
-				symbolTables.front()[tokenNameToReference].lowerBound = -stoi(currentToken.name);
-			}
-		}
-		typeToCompare = UNKNOWN;
-		currentToken = ScanOneToken();
-		if (currentToken.type != COLON) {
-			expectedToken = ":";
-			break;
-		}
-		currentToken = ScanOneToken();
-		if (currentToken.type == MINUS) {
-			currentToken = ScanOneToken();
-			typeToCompare;
-		}
-		if (currentToken.type != INTVAL) {
-			expectedToken = "Integer";
-			break;
-		}
-		if (scope != 0) {
-			if (typeToCompare != MINUS) {
-				symbolTables.back()[tokenNameToReference].upperBound = stoi(currentToken.name);
-			}
-			else {
-				symbolTables.back()[tokenNameToReference].upperBound = -stoi(currentToken.name);
-			}
-		}
-		else {
-			if (typeToCompare != MINUS) {
-				symbolTables.front()[tokenNameToReference].upperBound = stoi(currentToken.name);
-			}
-			else {
-				symbolTables.front()[tokenNameToReference].upperBound = -stoi(currentToken.name);
-			}
-		}
-		//if (!parse(currentToken, EXPRESSION)) {
-		//	break;
-		//}
-		isParsed = true;
-		expectedToken = "Bound";
-		break;
-
-	//STATEMENT PARSE
+		//STATEMENT PARSE
 	case STATEMENT:
 		if (currentToken.type == IDENTIFIER) {
 			if (!currentToken.declared) {
@@ -802,23 +777,23 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			parse(currentToken, NAME);
 			currentToken = ScanOneToken();
 			if (parse(currentToken, ASSIGNMENT_STATEMENT)) {
-				cout << "Assignment Statement" << endl;
+				//cout << "Assignment Statement" << endl;
 			}
 			else if (parse(currentToken, PROCEDURE_CALL)) {
-				cout << "Expression Statement" << endl;
+				//cout << "Expression Statement" << endl;
 			}
 			else {
 				break;
 			}
 		}
 		else if (parse(currentToken, IF_STATEMENT)) {
-			cout << "If Statement" << endl;
+			//cout << "If Statement" << endl;
 		}
 		else if (parse(currentToken, LOOP_STATEMENT)) {
-			cout << "Loop Statement" << endl;
+			//cout << "Loop Statement" << endl;
 		}
 		else if (parse(currentToken, RETURN_STATEMENT)) {
-			cout << "Return Statement" << endl;
+			//cout << "Return Statement" << endl;
 		}
 		else {
 			expectedToken = "Statement";
@@ -833,7 +808,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		expectedToken = "Statement";
 		break;
 
-	//PROCEDURE CALL PARSE
+		//PROCEDURE CALL PARSE
 	case PROCEDURE_CALL:
 		if (currentToken.type != LPAREN) {
 			break;
@@ -843,6 +818,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		}
 		currentToken = ScanOneToken();
 		parameterTypeList = tokenToReference.parameterTypes;
+		typeToCompare = tokenToReference.procedureOutType;
 		if (currentToken.type != RPAREN) {
 			parse(currentToken, ARGUMENT_LIST);
 			currentToken = ScanOneToken();
@@ -854,12 +830,12 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (parameterTypeList.size() != 0) {
 			cout << "ERROR: Not enough arguments at line " << lineNumber << endl;
 		}
-		currentVariableType = tokenToReference.procedureOutType;
+		currentVariableType = typeToCompare;
 		isParsed = true;
 		expectedToken = "Procedure call";
 		break;
 
-	//ASSIGNMENT STATEMENT
+		//ASSIGNMENT STATEMENT
 	case ASSIGNMENT_STATEMENT:
 		if (currentToken.type != ASSIGN) {
 			break;
@@ -869,8 +845,8 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (!parse(currentToken, EXPRESSION)) {
 			break;
 		}
-		if (typeToCompare != currentVariableType & 
-			!(typeToCompare == FLOATVAL & currentVariableType == INTVAL) & !(typeToCompare == INTVAL & currentVariableType == FLOATVAL) & 
+		if (typeToCompare != currentVariableType &
+			!(typeToCompare == FLOATVAL & currentVariableType == INTVAL) & !(typeToCompare == INTVAL & currentVariableType == FLOATVAL) &
 			!(typeToCompare == BOOLVAL & currentVariableType == INTVAL) & !(typeToCompare == INTVAL & currentVariableType == BOOLVAL)) {
 			typeError(currentVariableType);
 		}
@@ -878,7 +854,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		expectedToken = "Assignment Statement";
 		break;
 
-	//DESTINATION
+		//DESTINATION
 	case DESTINATION:
 		if (currentToken.type == LBRACKET) {
 			currentToken = ScanOneToken();
@@ -901,7 +877,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		expectedToken = "Destination";
 		break;
 
-	//IF PARSE
+		//IF PARSE
 	case IF_STATEMENT:
 		if (currentToken.type != IF) {
 			break;
@@ -957,7 +933,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		expectedToken = "If statement";
 		break;
 
-	//LOOP STATEMENT PARSE
+		//LOOP STATEMENT PARSE
 	case LOOP_STATEMENT:
 		if (currentToken.type != FOR) {
 			break;
@@ -1016,16 +992,20 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		expectedToken = "Loop statement";
 		break;
 
-	//RETURN STATEMENT PARSE
+		//RETURN STATEMENT PARSE
 	case RETURN_STATEMENT:
 		if (currentToken.type != RETURN) {
+			break;
+		}
+		currentToken = ScanOneToken();
+		if (!parse(currentToken, EXPRESSION)) {
 			break;
 		}
 		isParsed = true;
 		expectedToken = "Return statement";
 		break;
 
-	//EXPRESSION PARSE
+		//EXPRESSION PARSE
 	case EXPRESSION:
 		if (currentToken.type == NOT) {
 			currentToken = ScanOneToken();
@@ -1046,13 +1026,13 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		break;
 	case EXPRESSIONEXT:
 		if (currentToken.type == AND) {
-			cout << "and expression" << endl;
+			//cout << "and expression" << endl;
 		}
 		else if (currentToken.type == OR) {
-			cout << "or expression" << endl;
+			//cout << "or expression" << endl;
 		}
 		else {
-		    UngetToken(currentToken.name);
+			UngetToken(currentToken.name);
 			isParsed = true;
 			break;
 		}
@@ -1075,7 +1055,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		isParsed = true;
 		break;
 
-	//ARITHOP PARSE
+		//ARITHOP PARSE
 	case ARITHOP:
 		if (!parse(currentToken, RELATION)) {
 			break;
@@ -1090,10 +1070,10 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 
 	case ARITHOPEXT:
 		if (currentToken.type == PLUS) {
-			cout << "+ arithOp" << endl;
+			//cout << "+ arithOp" << endl;
 		}
 		else if (currentToken.type == MINUS) {
-			cout << "- arithOp" << endl;
+			//cout << "- arithOp" << endl;
 		}
 		else {
 			UngetToken(currentToken.name);
@@ -1124,7 +1104,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		isParsed = true;
 		break;
 
-	//RELATION PARSE
+		//RELATION PARSE
 	case RELATION:
 		if (!parse(currentToken, TERM)) {
 			break;
@@ -1138,22 +1118,22 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		break;
 	case RELATIONEXT:
 		if (currentToken.type == LESSTHAN) {
-			cout << "< relation" << endl;
+			//cout << "< relation" << endl;
 		}
 		else if (currentToken.type == LESSTHANEQUAL) {
-			cout << "<= relation" << endl;
+			//cout << "<= relation" << endl;
 		}
 		else if (currentToken.type == GREATERTHAN) {
-			cout << "> relation" << endl;
+			//cout << "> relation" << endl;
 		}
 		else if (currentToken.type == GREATERTHANEQUAL) {
-			cout << ">= relation" << endl;
+			//cout << ">= relation" << endl;
 		}
 		else if (currentToken.type == EQUAL) {
-			cout << "== relation" << endl;
+			//cout << "== relation" << endl;
 		}
 		else if (currentToken.type == NOTEQUAL) {
-			cout << "!= relation" << endl;
+			//cout << "!= relation" << endl;
 		}
 		else {
 			UngetToken(currentToken.name);
@@ -1185,7 +1165,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		isParsed = true;
 		break;
 
-	//TERM PARSE
+		//TERM PARSE
 	case TERM:
 		if (!parse(currentToken, FACTOR)) {
 			break;
@@ -1210,7 +1190,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			break;
 		}
 		if (currentVariableType != INTVAL & currentVariableType != FLOATVAL) {
-			typeError(currentVariableType);	
+			typeError(currentVariableType);
 		}
 		typeToCompare = currentVariableType;
 		currentToken = ScanOneToken();
@@ -1228,7 +1208,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		isParsed = true;
 		break;
 
-	//FACTOR PARSE
+		//FACTOR PARSE
 	case FACTOR:
 		if (currentToken.type == LPAREN) {
 			currentToken = ScanOneToken();
@@ -1248,6 +1228,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			if (!currentToken.declared) {
 				ScopeDeclarationError(currentToken.name);
 			}
+			tokenToReference = currentToken;
 			currentVariableType = currentToken.variableType;
 			currentToken = ScanOneToken();
 			if (parse(currentToken, PROCEDURE_CALL)) {
@@ -1313,7 +1294,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		}
 		break;
 
-	//NAME PARSE
+		//NAME PARSE
 	case NAME:
 		if (currentToken.type == LBRACKET) {
 			currentToken = ScanOneToken();
@@ -1334,7 +1315,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		expectedToken = "Name";
 		break;
 
-	//ARGUMENT LIST PARSE
+		//ARGUMENT LIST PARSE
 	case ARGUMENT_LIST:
 		if (!parse(currentToken, EXPRESSION)) {
 			break;
@@ -1344,8 +1325,8 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			break;
 		}
 		if (parameterTypeList.front() != currentVariableType &
-		!(parameterTypeList.front() == FLOATVAL & currentVariableType == INTVAL) & !(parameterTypeList.front() == INTVAL & currentVariableType == FLOATVAL) &
-		!(parameterTypeList.front() == BOOLVAL & currentVariableType == INTVAL) & !(parameterTypeList.front() == INTVAL & currentVariableType == BOOLVAL)) {
+			!(parameterTypeList.front() == FLOATVAL & currentVariableType == INTVAL) & !(parameterTypeList.front() == INTVAL & currentVariableType == FLOATVAL) &
+			!(parameterTypeList.front() == BOOLVAL & currentVariableType == INTVAL) & !(parameterTypeList.front() == INTVAL & currentVariableType == BOOLVAL)) {
 			typeError(currentVariableType);
 		}
 		parameterTypeList.pop_front();
@@ -1363,7 +1344,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		expectedToken = "Argument list";
 		break;
 
-	//NO PARSE FOUND
+		//NO PARSE FOUND
 	default:
 		cout << "Error: No parse for " << nonTerminal << " at line " << lineNumber << endl;
 		expectedToken = "parsable nonterminal";
@@ -1376,7 +1357,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		//cout << expectedToken << " " << currentToken.name << " parsed successfully at line " << lineNumber << endl;
 	}
 	else if (expectedToken != "") {
-		cout << endl <<  "ERROR: Expected " << expectedToken << ", got " << currentToken.name << " at line " << lineNumber << endl
+		cout << endl << "ERROR: Expected " << expectedToken << ", got " << currentToken.name << " at line " << lineNumber << endl
 			<< "Resyncing..." << endl << endl;
 		resync(currentToken);
 	}
@@ -1384,34 +1365,42 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 }
 
 //Main
-int main(int argc, char **argv)
+int main(/*int argc, char* argv[]*/)
 {
 	//Initialization
-	file = fopen(argv[1], "r");
 	cout << "begin" << endl;
+	//file = fopen(argv[1], "r");
 	symbolTables.push_back(globalSymbolTable);
 	token currentToken = { BEGIN, "test" };
+	//Generate main method
+	outFile.open("CodeGen.c");
+	outFile << "int main {" << endl;
+
 	//Parse program
+	cout << "At line " << lineNumber << endl;
 	currentToken = ScanOneToken();
 	parse(currentToken, PROGRAM_MAIN);
+
+
 	cout << "**End of program**" << endl;
 
 	//List symbols for debugging
 	scope = 0;
-	cout << endl << "Global Symbols (name: type): " << endl << endl;
-	for (symbol_table symbolTable : symbolTables) 
+	cout << endl << "Global Symbols (name: type): " << endl;
+	for (symbol_table symbolTable : symbolTables)
 	{
-		cout << "Table " << scope << ":" << endl;;
+		cout << "Table " << scope << ": ";
 		symbol_table::iterator itr;
 		for (itr = symbolTable.begin(); itr != symbolTable.end(); itr++)
 		{
-			cout << itr->second.name << ": " << itr->second.type << endl;
+			cout << itr->second.name << ": " << itr->second.type << ",";
 		}
 		cout << endl;
 		scope++;
 	}
+	outFile << "}" << endl;
+	outFile.close();
 	cout << endl << endl << "end!" << endl;
 	return 0;
-	}
-
+}
 
