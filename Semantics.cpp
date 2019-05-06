@@ -1,6 +1,6 @@
 /*EECE6083: PARSER
  * Programmer: David Luria
- * Date updated: 5/3/2019
+ * Date updated: 5/5/2019
  */
 
 #include <iostream>
@@ -12,7 +12,7 @@
 using namespace std;
 
 //File to compile
-FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\math.src", "r");
+FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\iterativeFib.src", "r");
 
 //Line number
 int lineNumber = 1;
@@ -292,7 +292,7 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 			outToken.name = outToken.name;
 			if (declaration) {
 				outToken.declared = true;
-				cout << outToken.name << " declared" << endl;
+				//cout << outToken.name << " declared" << endl;
 			}
 			//If currently in global scope, add to global symbol table (bottom of stack)
 			if (scope == 0)
@@ -497,10 +497,10 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			currentToken = ScanOneToken();
 		}
 		if (parse(currentToken, PROCEDURE_DECLARATION)) {
-			cout << "Procedure Declaration" << endl;
+			//cout << "Procedure Declaration" << endl;
 		}
 		else if (parse(currentToken, VARIABLE_DECLARATION)) {
-			cout << "Variable Declaration" << endl;
+			//cout << "Variable Declaration" << endl;
 		}
 		else {
 			expectedToken = "Declaration";
@@ -701,23 +701,23 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		//TYPE MARK PARSE
 	case TYPE_MARK:
 		if (currentToken.type == INTEGER) {
-			cout << "Integer type mark" << endl;
+			//cout << "Integer type mark" << endl;
 			currentVariableType = INTVAL;
 		}
 		else if (currentToken.type == FLOAT) {
-			cout << "Float type mark" << endl;
+			//cout << "Float type mark" << endl;
 			currentVariableType = FLOATVAL;
 		}
 		else if (currentToken.type == STRING) {
-			cout << "String type mark" << endl;
+			//cout << "String type mark" << endl;
 			currentVariableType = STRINGVAL;
 		}
 		else if (currentToken.type == BOOL) {
-			cout << "Bool type mark" << endl;
+			//cout << "Bool type mark" << endl;
 			currentVariableType = BOOLVAL;
 		}
 		else if (currentToken.type == CHAR) {
-			cout << "Char type mark" << endl;
+			//cout << "Char type mark" << endl;
 			currentVariableType = STRINGVAL;
 		}
 		else {
@@ -740,23 +740,23 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			parse(currentToken, NAME);
 			currentToken = ScanOneToken();
 			if (parse(currentToken, ASSIGNMENT_STATEMENT)) {
-				cout << "Assignment Statement" << endl;
+				//cout << "Assignment Statement" << endl;
 			}
 			else if (parse(currentToken, PROCEDURE_CALL)) {
-				cout << "Expression Statement" << endl;
+				//cout << "Expression Statement" << endl;
 			}
 			else {
 				break;
 			}
 		}
 		else if (parse(currentToken, IF_STATEMENT)) {
-			cout << "If Statement" << endl;
+			//cout << "If Statement" << endl;
 		}
 		else if (parse(currentToken, LOOP_STATEMENT)) {
-			cout << "Loop Statement" << endl;
+			//cout << "Loop Statement" << endl;
 		}
 		else if (parse(currentToken, RETURN_STATEMENT)) {
-			cout << "Return Statement" << endl;
+			//cout << "Return Statement" << endl;
 		}
 		else {
 			expectedToken = "Statement";
@@ -989,10 +989,10 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		break;
 	case EXPRESSIONEXT:
 		if (currentToken.type == AND) {
-			cout << "and expression" << endl;
+			//cout << "and expression" << endl;
 		}
 		else if (currentToken.type == OR) {
-			cout << "or expression" << endl;
+			//cout << "or expression" << endl;
 		}
 		else {
 			UngetToken(currentToken.name);
@@ -1033,10 +1033,10 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 
 	case ARITHOPEXT:
 		if (currentToken.type == PLUS) {
-			cout << "+ arithOp" << endl;
+			//cout << "+ arithOp" << endl;
 		}
 		else if (currentToken.type == MINUS) {
-			cout << "- arithOp" << endl;
+			//cout << "- arithOp" << endl;
 		}
 		else {
 			UngetToken(currentToken.name);
@@ -1081,22 +1081,22 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		break;
 	case RELATIONEXT:
 		if (currentToken.type == LESSTHAN) {
-			cout << "< relation" << endl;
+			//cout << "< relation" << endl;
 		}
 		else if (currentToken.type == LESSTHANEQUAL) {
-			cout << "<= relation" << endl;
+			//cout << "<= relation" << endl;
 		}
 		else if (currentToken.type == GREATERTHAN) {
-			cout << "> relation" << endl;
+			//cout << "> relation" << endl;
 		}
 		else if (currentToken.type == GREATERTHANEQUAL) {
-			cout << ">= relation" << endl;
+			//cout << ">= relation" << endl;
 		}
 		else if (currentToken.type == EQUAL) {
-			cout << "== relation" << endl;
+			//cout << "== relation" << endl;
 		}
 		else if (currentToken.type == NOTEQUAL) {
-			cout << "!= relation" << endl;
+			//cout << "!= relation" << endl;
 		}
 		else {
 			UngetToken(currentToken.name);
@@ -1142,10 +1142,10 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		break;
 	case TERMEXT:
 		if (currentToken.type == STAR) {
-			cout << "* term" << endl;
+			//cout << "* term" << endl;
 		}
 		else if (currentToken.type == SLASH) {
-			cout << "/ term" << endl;
+			//cout << "/ term" << endl;
 		}
 		else {
 			UngetToken(currentToken.name);
@@ -1328,19 +1328,20 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 }
 
 //Main
-int main()
+int main(/*int argc, char* argv[]*/)
 {
 	//Initialization
-	cout << "begin" << endl;
+	//cout << "begin" << endl;
+	//file = fopen(argv[1], "r");
 	symbolTables.push_back(globalSymbolTable);
 	token currentToken = { BEGIN, "test" };
 	//Parse program
 	currentToken = ScanOneToken();
 	parse(currentToken, PROGRAM_MAIN);
-	cout << "**End of program**" << endl;
+	//cout << "**End of program**" << endl;
 
 	//List symbols for debugging
-	scope = 0;
+	/*scope = 0;
 	cout << endl << "Global Symbols (name: type): " << endl;
 	for (symbol_table symbolTable : symbolTables)
 	{
@@ -1354,6 +1355,6 @@ int main()
 		scope++;
 	}
 	cout << endl << endl << "end!" << endl;
-	return 0;
+	return 0;*/
 }
 

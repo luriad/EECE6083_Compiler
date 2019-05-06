@@ -304,13 +304,13 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 			if (scope == 0)
 			{
 				symbolTables.front()[outToken.name] = outToken;
-				//cout << tokenName << " added to global symbol table" << endl;
+				cout << outToken.name << " added to global symbol table" << endl;
 			}
 			//If not currently in global scope, add to local symbol table (top of stack)
 			else
 			{
 				symbolTables.back()[outToken.name] = outToken;
-				//cout << outToken.name << " added to local symbol table " << scope << endl;
+				cout << outToken.name << " added to local symbol table " << scope << endl;
 			}
 		}
 	}
@@ -446,7 +446,7 @@ void redeclarationError(token errorToken) {
 
 //Non-negatable variable error
 void negationError(token errorToken) {
-	cout << "ERROR: " << errorToken.name << " cannot be negated at aline " << lineNumber << endl;
+	cout << "ERROR: " << errorToken.name << " cannot be negated at line " << lineNumber << endl;
 }
 
 //Type Error
@@ -755,23 +755,23 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		//TYPE MARK PARSE
 	case TYPE_MARK:
 		if (currentToken.type == INTEGER) {
-			//cout << "Integer type mark" << endl;
+			cout << "Integer type mark" << endl;
 			currentVariableType = INTVAL;
 		}
 		else if (currentToken.type == FLOAT) {
-			//cout << "Float type mark" << endl;
+			cout << "Float type mark" << endl;
 			currentVariableType = FLOATVAL;
 		}
 		else if (currentToken.type == STRING) {
-			//cout << "String type mark" << endl;
+			cout << "String type mark" << endl;
 			currentVariableType = STRINGVAL;
 		}
 		else if (currentToken.type == BOOL) {
-			//cout << "Bool type mark" << endl;
+			cout << "Bool type mark" << endl;
 			currentVariableType = BOOLVAL;
 		}
 		else if (currentToken.type == CHAR) {
-			//cout << "Char type mark" << endl;
+			cout << "Char type mark" << endl;
 			currentVariableType = STRINGVAL;
 		}
 		else {
@@ -1053,11 +1053,11 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		break;
 	case EXPRESSIONEXT:
 		if (currentToken.type == AND) {
-			//cout << "and expression" << endl;
+			cout << "and expression" << endl;
 			operation = "&";
 		}
 		else if (currentToken.type == OR) {
-			//cout << "or expression" << endl;
+			cout << "or expression" << endl;
 			operation = "|";
 		}
 		else {
@@ -1102,11 +1102,11 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 
 	case ARITHOPEXT:
 		if (currentToken.type == PLUS) {
-			//cout << "+ arithOp" << endl;
+			cout << "+ arithOp" << endl;
 			operation = "+";
 		}
 		else if (currentToken.type == MINUS) {
-			//cout << "- arithOp" << endl;
+			cout << "- arithOp" << endl;
 			operation = "-";
 		}
 		else {
@@ -1155,27 +1155,27 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		break;
 	case RELATIONEXT:
 		if (currentToken.type == LESSTHAN) {
-			//cout << "< relation" << endl;
+			cout << "< relation" << endl;
 			operation = "<";
 		}
 		else if (currentToken.type == LESSTHANEQUAL) {
-			//cout << "<= relation" << endl;
+			cout << "<= relation" << endl;
 			operation = "<=";
 		}
 		else if (currentToken.type == GREATERTHAN) {
-			//cout << "> relation" << endl;
+			cout << "> relation" << endl;
 			operation = ">";
 		}
 		else if (currentToken.type == GREATERTHANEQUAL) {
-			//cout << ">= relation" << endl;
+			cout << ">= relation" << endl;
 			operation = ">=";
 		}
 		else if (currentToken.type == EQUAL) {
-			//cout << "== relation" << endl;
+			cout << "== relation" << endl;
 			operation = "==";
 		}
 		else if (currentToken.type == NOTEQUAL) {
-			//cout << "!= relation" << endl;
+			cout << "!= relation" << endl;
 			operation = "!=";
 		}
 		else {
@@ -1225,11 +1225,11 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		break;
 	case TERMEXT:
 		if (currentToken.type == STAR) {
-			//cout << "* term" << endl;
+			cout << "* term" << endl;
 			operation = "*";
 		}
 		else if (currentToken.type == SLASH) {
-			//cout << "/ term" << endl;
+			cout << "/ term" << endl;
 			operation = "/";
 		}
 		else {
@@ -1411,7 +1411,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		expectedToken = "";
 	}
 	if (isParsed & expectedToken != "") {
-		//cout << expectedToken << " " << currentToken.name << " parsed successfully at line " << lineNumber << endl;
+		cout << expectedToken << " " << currentToken.name << " parsed successfully at line " << lineNumber << endl;
 	}
 	else if (expectedToken != "") {
 		cout << endl << "ERROR: Expected " << expectedToken << ", got " << currentToken.name << " at line " << lineNumber << endl
@@ -1425,7 +1425,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 int main(/*int argc, char* argv[]*/)
 {
 	//Initialization
-	//cout << "begin" << endl;
+	cout << "begin" << endl;
 	//file = fopen(argv[1], "r");
 	symbolTables.push_back(globalSymbolTable);
 	token currentToken = { BEGIN, "test" };
@@ -1439,13 +1439,13 @@ int main(/*int argc, char* argv[]*/)
 	parse(currentToken, PROGRAM_MAIN);
 
 
-	//cout << "**End of program**" << endl;
+	cout << "**End of program**" << endl;
 
 	outFile << "}" << endl;
 	outFile.close();
 
 	//List symbols for debugging
-	/*scope = 0;
+	scope = 0;
 	cout << endl << "Global Symbols (name: type): " << endl;
 	for (symbol_table symbolTable : symbolTables)
 	{
@@ -1460,6 +1460,7 @@ int main(/*int argc, char* argv[]*/)
 		scope++;
 	}
 	cout << endl << endl << "end!" << endl;
-	return 0;*/
+	return 0;
+
 }
 

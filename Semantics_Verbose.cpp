@@ -4,7 +4,6 @@
  */
 
 #include <iostream>
-#include <fstream>
 #include <stdio.h>
 #include <string>
 #include <list>
@@ -13,9 +12,7 @@
 using namespace std;
 
 //File to compile
-FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\recursiveFib.src", "r");
-ofstream outFile;
-
+FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\iterativeFib.src", "r");
 
 //Line number
 int lineNumber = 1;
@@ -82,7 +79,6 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 	{
 		if (currentChar == '\n') {
 			lineNumber++;
-			//cout << "At line " << lineNumber << endl;
 		}
 		currentChar = getc(file);
 	}
@@ -102,7 +98,6 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 				}
 				//Skip remaining whitespace
 				lineNumber++;
-				//cout << "At line " << lineNumber << endl;
 				while (isspace(currentChar)) {
 					currentChar = getc(file);
 				}
@@ -117,7 +112,6 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 					currentChar = getc(file);
 					if (currentChar == '\n') {
 						lineNumber++;
-						//cout << "At line " << lineNumber << endl;
 					}
 					else if (currentChar == '/') {
 						currentChar = getc(file);
@@ -281,15 +275,15 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 		outToken.name.pop_back();
 		//Convert to lowercase (compiler is case insensitive)
 		std::transform(outToken.name.begin(), outToken.name.end(), outToken.name.begin(), ::tolower);
-		//Check if token is in global symbol table
-		if (symbolTables.front().find(outToken.name) != symbolTables.front().end())
-		{
-		outToken = symbolTables.front()[outToken.name];
-		}
-		//If not local, check if token is in global symbol table
-		else if (symbolTables.back().find(outToken.name) != symbolTables.back().end())
+		//Check if token is in local symbol table
+		if (symbolTables.back().find(outToken.name) != symbolTables.back().end())
 		{
 			outToken = symbolTables.back()[outToken.name];
+		}
+		//If not local, check if token is in global symbol table
+		else if (symbolTables.front().find(outToken.name) != symbolTables.front().end())
+		{
+			outToken = symbolTables.front()[outToken.name];
 		}
 		//If not in either symbol table, give it the identifier type
 		else
@@ -304,13 +298,13 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 			if (scope == 0)
 			{
 				symbolTables.front()[outToken.name] = outToken;
-				//cout << tokenName << " added to global symbol table" << endl;
+				cout << outToken.name << " added to global symbol table" << endl;
 			}
 			//If not currently in global scope, add to local symbol table (top of stack)
 			else
 			{
 				symbolTables.back()[outToken.name] = outToken;
-				//cout << outToken.name << " added to local symbol table " << scope << endl;
+				cout << outToken.name << " added to local symbol table " << scope << endl;
 			}
 		}
 	}
@@ -342,9 +336,6 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 		outToken.name.pop_back();
 	}
 	//cout << outToken.type << " " << outToken.name << " scanned at line " << lineNumber << endl;
-	if (outToken.type == UNKNOWN) {
-		cout << "Unknown token " << outToken.name << " at line " << lineNumber << endl;
-	}
 	return outToken;
 }
 
@@ -357,42 +348,6 @@ void UngetToken(string token) {
 		ungetc(*rit, file);
 	}
 }
-
-//Register and Memory Stacks
-int locInStack;
-list<int> memLocHistory;
-int regNum;
-
-void assignMem(string tokenName) {
-	if (scope != 0) {
-		symbolTables.back()[tokenName].memoryLocation = locInStack;
-	}
-	else {
-		symbolTables.front()[tokenName].memoryLocation = locInStack;
-	}
-	locInStack += symbolTables.back()[tokenName].arraySize + 1;
-}
-
-//int findReg() {
-//	int loc = 0;
-//	bool found = false;
-//	do {
-//		if (find(reg.begin(), reg.end(), loc) != reg.end()) {
-//			found = true;
-//		}
-//		else {
-//			loc++;
-//		}
-//	} while (!found);
-//	reg.push_back(loc);
-//	return loc;
-//}
-//
-//void clearReg(int regNum, int size) {
-//	for (int i = regNum; i < regNum + size; i++) {
-//		reg.erase(find(reg.begin(), reg.end(), regNum));
-//	}
-//}
 
 /*Errors*/
 
@@ -451,19 +406,16 @@ void negationError(token errorToken) {
 
 //Type Error
 void typeError(tokenType unexpectedType) {
-	cout << "ERROR: Type mismatch at line " << lineNumber << endl;
+	cout << "ERROR: Unexpected " << unexpectedType << " at line " << lineNumber << endl;
 }
 
 //Parser Method
 bool parse(token currentToken, nonTerminal nonTerminal) {
 	tokenType typeToCompare = UNKNOWN;
 	string tokenNameToCompare;
-	token tokenToCompare;
 	bool isParsed = false;
 	string expectedToken;
 	token nextToken;
-	string operation;
-	int reg1;
 
 	//cout << "Parsing " << nonTerminal << " at line " << lineNumber <<endl;
 	switch (nonTerminal) {
@@ -545,10 +497,10 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			currentToken = ScanOneToken();
 		}
 		if (parse(currentToken, PROCEDURE_DECLARATION)) {
-			//cout << "Procedure Declaration" << endl;
+			cout << "Procedure Declaration" << endl;
 		}
 		else if (parse(currentToken, VARIABLE_DECLARATION)) {
-			//cout << "Variable Declaration" << endl;
+			cout << "Variable Declaration" << endl;
 		}
 		else {
 			expectedToken = "Declaration";
@@ -582,8 +534,6 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		symbolTables.pop_back();
 		symbolTables.back()[procedureNames.back()] = tokenToReference;
 		procedureNames.pop_back();
-		locInStack = memLocHistory.back();
-		memLocHistory.pop_back();
 		break;
 	case PROCEDURE_HEADER:
 		if (currentToken.type != PROCEDURE) {
@@ -604,9 +554,6 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		procedureNames.push_back(currentToken.name);
 		scope++;
 		symbolTables.push_back({ {currentToken.name, {currentToken}} });
-		outFile << currentToken.name << ":" << endl;
-		memLocHistory.push_back(locInStack);
-		locInStack = 0;
 		currentToken = ScanOneToken();
 		if (currentToken.type != COLON) {
 			expectedToken = ":";
@@ -714,7 +661,6 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			expectedToken = "Identifier";
 			break;
 		}
-		assignMem(currentToken.name);
 		tokenNameToCompare = currentToken.name;
 		currentToken = ScanOneToken();
 		if (currentToken.type != COLON) {
@@ -755,23 +701,23 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		//TYPE MARK PARSE
 	case TYPE_MARK:
 		if (currentToken.type == INTEGER) {
-			//cout << "Integer type mark" << endl;
+			cout << "Integer type mark" << endl;
 			currentVariableType = INTVAL;
 		}
 		else if (currentToken.type == FLOAT) {
-			//cout << "Float type mark" << endl;
+			cout << "Float type mark" << endl;
 			currentVariableType = FLOATVAL;
 		}
 		else if (currentToken.type == STRING) {
-			//cout << "String type mark" << endl;
+			cout << "String type mark" << endl;
 			currentVariableType = STRINGVAL;
 		}
 		else if (currentToken.type == BOOL) {
-			//cout << "Bool type mark" << endl;
+			cout << "Bool type mark" << endl;
 			currentVariableType = BOOLVAL;
 		}
 		else if (currentToken.type == CHAR) {
-			//cout << "Char type mark" << endl;
+			cout << "Char type mark" << endl;
 			currentVariableType = STRINGVAL;
 		}
 		else {
@@ -794,23 +740,23 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			parse(currentToken, NAME);
 			currentToken = ScanOneToken();
 			if (parse(currentToken, ASSIGNMENT_STATEMENT)) {
-				//cout << "Assignment Statement" << endl;
+				cout << "Assignment Statement" << endl;
 			}
 			else if (parse(currentToken, PROCEDURE_CALL)) {
-				//cout << "Expression Statement" << endl;
+				cout << "Expression Statement" << endl;
 			}
 			else {
 				break;
 			}
 		}
 		else if (parse(currentToken, IF_STATEMENT)) {
-			//cout << "If Statement" << endl;
+			cout << "If Statement" << endl;
 		}
 		else if (parse(currentToken, LOOP_STATEMENT)) {
-			//cout << "Loop Statement" << endl;
+			cout << "Loop Statement" << endl;
 		}
 		else if (parse(currentToken, RETURN_STATEMENT)) {
-			//cout << "Return Statement" << endl;
+			cout << "Return Statement" << endl;
 		}
 		else {
 			expectedToken = "Statement";
@@ -858,7 +804,6 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			break;
 		}
 		typeToCompare = currentVariableType;
-		tokenToCompare = tokenToReference;
 		currentToken = ScanOneToken();
 		if (!parse(currentToken, EXPRESSION)) {
 			break;
@@ -868,12 +813,6 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			!(typeToCompare == BOOLVAL & currentVariableType == INTVAL) & !(typeToCompare == INTVAL & currentVariableType == BOOLVAL)) {
 			typeError(currentVariableType);
 		}
-		outFile << "M[";
-		if (scope > 1) {
-			outFile << "R[SP] + ";
-		}
-		outFile << tokenToCompare.memoryLocation << "] = R[" << regNum-1 << "]" << endl;
-		regNum = 0;
 		isParsed = true;
 		expectedToken = "Assignment Statement";
 		break;
@@ -1025,9 +964,6 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (!parse(currentToken, EXPRESSION)) {
 			break;
 		}
-		if (currentVariableType != symbolTables.back()[procedureNames.back()].procedureOutType) {
-			typeError(currentVariableType);
-		}
 		isParsed = true;
 		expectedToken = "Return statement";
 		break;
@@ -1053,19 +989,16 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		break;
 	case EXPRESSIONEXT:
 		if (currentToken.type == AND) {
-			//cout << "and expression" << endl;
-			operation = "&";
+			cout << "and expression" << endl;
 		}
 		else if (currentToken.type == OR) {
-			//cout << "or expression" << endl;
-			operation = "|";
+			cout << "or expression" << endl;
 		}
 		else {
 			UngetToken(currentToken.name);
 			isParsed = true;
 			break;
 		}
-		reg1 = regNum;
 		if (currentVariableType != BOOLVAL & currentVariableType != INTVAL) {
 			typeError(currentVariableType);
 		}
@@ -1074,8 +1007,6 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (!parse(currentToken, ARITHOP)) {
 			break;
 		}
-		outFile << "R[" << regNum << "] = R[" << regNum - 1 << "] " << operation << " R[" << reg1 - 1 << "]" << endl;
-		regNum++;
 		currentToken = ScanOneToken();
 		if (!parse(currentToken, EXPRESSIONEXT)) {
 			break;
@@ -1102,19 +1033,16 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 
 	case ARITHOPEXT:
 		if (currentToken.type == PLUS) {
-			//cout << "+ arithOp" << endl;
-			operation = "+";
+			cout << "+ arithOp" << endl;
 		}
 		else if (currentToken.type == MINUS) {
-			//cout << "- arithOp" << endl;
-			operation = "-";
+			cout << "- arithOp" << endl;
 		}
 		else {
 			UngetToken(currentToken.name);
 			isParsed = true;
 			break;
 		}
-		reg1 = regNum;
 		if (currentVariableType != INTVAL & currentVariableType != FLOATVAL) {
 			typeError(currentVariableType);
 		}
@@ -1123,8 +1051,6 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (!parse(currentToken, RELATION)) {
 			break;
 		}
-		outFile << "R[" << regNum << "] = R[" << regNum - 1 << "] " << operation << " R[" << reg1 - 1 << "]" << endl;
-		regNum++;
 		currentToken = ScanOneToken();
 		if (!parse(currentToken, ARITHOPEXT)) {
 			break;
@@ -1155,35 +1081,28 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		break;
 	case RELATIONEXT:
 		if (currentToken.type == LESSTHAN) {
-			//cout << "< relation" << endl;
-			operation = "<";
+			cout << "< relation" << endl;
 		}
 		else if (currentToken.type == LESSTHANEQUAL) {
-			//cout << "<= relation" << endl;
-			operation = "<=";
+			cout << "<= relation" << endl;
 		}
 		else if (currentToken.type == GREATERTHAN) {
-			//cout << "> relation" << endl;
-			operation = ">";
+			cout << "> relation" << endl;
 		}
 		else if (currentToken.type == GREATERTHANEQUAL) {
-			//cout << ">= relation" << endl;
-			operation = ">=";
+			cout << ">= relation" << endl;
 		}
 		else if (currentToken.type == EQUAL) {
-			//cout << "== relation" << endl;
-			operation = "==";
+			cout << "== relation" << endl;
 		}
 		else if (currentToken.type == NOTEQUAL) {
-			//cout << "!= relation" << endl;
-			operation = "!=";
+			cout << "!= relation" << endl;
 		}
 		else {
 			UngetToken(currentToken.name);
 			isParsed = true;
 			break;
 		}
-		reg1 = regNum;
 		if (currentVariableType != BOOLVAL & currentVariableType != INTVAL & currentVariableType != FLOATVAL & currentVariableType != STRINGVAL) {
 			typeError(currentVariableType);
 		}
@@ -1195,8 +1114,6 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (!parse(currentToken, TERM)) {
 			break;
 		}
-		outFile << "R[" << regNum << "] = R[" << regNum - 1 << "] " << operation << " R[" << reg1-1<< "]" << endl;
-		regNum++;
 		currentToken = ScanOneToken();
 		if (!parse(currentToken, RELATIONEXT)) {
 			break;
@@ -1225,19 +1142,16 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		break;
 	case TERMEXT:
 		if (currentToken.type == STAR) {
-			//cout << "* term" << endl;
-			operation = "*";
+			cout << "* term" << endl;
 		}
 		else if (currentToken.type == SLASH) {
-			//cout << "/ term" << endl;
-			operation = "/";
+			cout << "/ term" << endl;
 		}
 		else {
 			UngetToken(currentToken.name);
 			isParsed = true;
 			break;
 		}
-		reg1 = regNum;
 		if (currentVariableType != INTVAL & currentVariableType != FLOATVAL) {
 			typeError(currentVariableType);
 		}
@@ -1246,8 +1160,6 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (!parse(currentToken, FACTOR)) {
 			break;
 		}
-		outFile << "R[" << regNum << "] = R[" << regNum-1 << "] " << operation << " R[" << reg1 - 1 << "]" << endl;
-		regNum++;
 		currentToken = ScanOneToken();
 		if (!parse(currentToken, TERMEXT)) {
 			break;
@@ -1288,12 +1200,6 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 				break;
 			}
 			else if (parse(currentToken, NAME)) {
-				outFile << "R[" << regNum << "] = M[";
-				if (scope > 1) {
-					outFile << "R[SP] + ";
-				}
-				outFile << tokenToReference.memoryLocation << "]" << endl;
-				regNum++;
 				isParsed = true;
 				expectedToken = "Factor";
 				break;
@@ -1411,7 +1317,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		expectedToken = "";
 	}
 	if (isParsed & expectedToken != "") {
-		//cout << expectedToken << " " << currentToken.name << " parsed successfully at line " << lineNumber << endl;
+		cout << expectedToken << " " << currentToken.name << " parsed successfully at line " << lineNumber << endl;
 	}
 	else if (expectedToken != "") {
 		cout << endl << "ERROR: Expected " << expectedToken << ", got " << currentToken.name << " at line " << lineNumber << endl
@@ -1425,27 +1331,17 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 int main(/*int argc, char* argv[]*/)
 {
 	//Initialization
-	//cout << "begin" << endl;
+	cout << "begin" << endl;
 	//file = fopen(argv[1], "r");
 	symbolTables.push_back(globalSymbolTable);
 	token currentToken = { BEGIN, "test" };
-	//Generate main method
-	outFile.open("CodeGen.c");
-	outFile << "int main {" << endl;
-
 	//Parse program
-	//cout << "At line " << lineNumber << endl;
 	currentToken = ScanOneToken();
 	parse(currentToken, PROGRAM_MAIN);
-
-
-	//cout << "**End of program**" << endl;
-
-	outFile << "}" << endl;
-	outFile.close();
+	cout << "**End of program**" << endl;
 
 	//List symbols for debugging
-	/*scope = 0;
+	scope = 0;
 	cout << endl << "Global Symbols (name: type): " << endl;
 	for (symbol_table symbolTable : symbolTables)
 	{
@@ -1454,12 +1350,11 @@ int main(/*int argc, char* argv[]*/)
 		for (itr = symbolTable.begin(); itr != symbolTable.end(); itr++)
 		{
 			cout << itr->second.name << ": " << itr->second.type << ",";
-			cout << endl;
 		}
 		cout << endl;
 		scope++;
 	}
 	cout << endl << endl << "end!" << endl;
-	return 0;*/
+	return 0;
 }
 
