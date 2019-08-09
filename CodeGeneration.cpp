@@ -1,6 +1,6 @@
-/*EECE6083: PARSER
+/*EECE6083: CODE GENERATION
  * Programmer: David Luria
- * Date updated: 5/5/2019
+ * Date updated: 8/9/2019
  */
 
 #include <iostream>
@@ -13,9 +13,8 @@
 using namespace std;
 
 //File to compile
-FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\recursiveFib.src", "r");
+FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\iterativeFib.src", "r");
 ofstream outFile;
-
 
 //Line number
 int lineNumber = 1;
@@ -34,7 +33,7 @@ struct token {
 	bool declared = false;
 	tokenType variableType = UNKNOWN;
 	tokenType procedureOutType = UNKNOWN;
-	int arraySize = 0;
+	int arraySize = 1;
 	list<tokenType> parameterTypes;
 	int memoryLocation;
 };
@@ -67,6 +66,7 @@ string tokenNameToReference;
 token tokenToReference;
 list<tokenType> parameterTypeList;
 bool resyncFinish = false;
+int arrayAccess = 0;
 
 //Scanner Method
 token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
@@ -359,18 +359,18 @@ void UngetToken(string token) {
 }
 
 //Register and Memory Stacks
-int locInStack;
-list<int> memLocHistory;
+int stackPointer;
+list<int> programStack;
 int regNum;
 
 void assignMem(string tokenName) {
 	if (scope != 0) {
-		symbolTables.back()[tokenName].memoryLocation = locInStack;
+		symbolTables.back()[tokenName].memoryLocation = stackPointer;
 	}
 	else {
-		symbolTables.front()[tokenName].memoryLocation = locInStack;
+		symbolTables.front()[tokenName].memoryLocation = stackPointer;
 	}
-	locInStack += symbolTables.back()[tokenName].arraySize + 1;
+	stackPointer += symbolTables.back()[tokenName].arraySize;
 }
 
 //int findReg() {
@@ -452,6 +452,11 @@ void negationError(token errorToken) {
 //Type Error
 void typeError(tokenType unexpectedType) {
 	cout << "ERROR: Type mismatch at line " << lineNumber << endl;
+}
+
+//Boounds Error
+void boundsError() {
+	cout << "ERROR: Array reference is out of bounds at line " << lineNumber << endl;
 }
 
 //Parser Method
@@ -582,8 +587,8 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		symbolTables.pop_back();
 		symbolTables.back()[procedureNames.back()] = tokenToReference;
 		procedureNames.pop_back();
-		locInStack = memLocHistory.back();
-		memLocHistory.pop_back();
+		stackPointer = programStack.back();
+		programStack.pop_back();
 		break;
 	case PROCEDURE_HEADER:
 		if (currentToken.type != PROCEDURE) {
@@ -605,8 +610,8 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		scope++;
 		symbolTables.push_back({ {currentToken.name, {currentToken}} });
 		outFile << currentToken.name << ":" << endl;
-		memLocHistory.push_back(locInStack);
-		locInStack = 0;
+		programStack.push_back(stackPointer);
+		stackPointer = 0;
 		currentToken = ScanOneToken();
 		if (currentToken.type != COLON) {
 			expectedToken = ":";
@@ -714,7 +719,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			expectedToken = "Identifier";
 			break;
 		}
-		assignMem(currentToken.name);
+		//assignMem(currentToken.name);
 		tokenNameToCompare = currentToken.name;
 		currentToken = ScanOneToken();
 		if (currentToken.type != COLON) {
@@ -739,6 +744,12 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 				expectedToken = "integer";
 				break;
 			}
+			if (scope != 0) {
+				symbolTables.back()[tokenNameToCompare].arraySize = std::stoi(currentToken.name);
+			}
+			else {
+				symbolTables.front()[tokenNameToCompare].arraySize = std::stoi(currentToken.name);
+			}
 			currentToken = ScanOneToken();
 			if (currentToken.type != RBRACKET) {
 				expectedToken = "]";
@@ -748,6 +759,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		else {
 			UngetToken(nextToken.name);
 		}
+		assignMem(tokenNameToCompare);
 		isParsed = true;
 		expectedToken = "Variable Declaration";
 		break;
@@ -785,6 +797,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		//STATEMENT PARSE
 	case STATEMENT:
 		if (currentToken.type == IDENTIFIER) {
+			arrayAccess = currentToken.arraySize;
 			if (!currentToken.declared) {
 				ScopeDeclarationError(currentToken.name);
 			}
@@ -854,6 +867,24 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 
 		//ASSIGNMENT STATEMENT
 	case ASSIGNMENT_STATEMENT:
+		if (currentToken.type == LBRACKET) {
+			currentToken = ScanOneToken();
+			if (!parse(currentToken, EXPRESSION)) {
+				break;
+			}
+			if (currentVariableType != INTVAL) {
+				typeError(currentVariableType);
+			}
+			if (currentToken.type == INTVAL & std::stoi(currentToken.name) >= arrayAccess) {
+				boundsError();
+			}
+			currentToken = ScanOneToken();
+			if (currentToken.type != RBRACKET) {
+				expectedToken = "]";
+				break;
+			}
+		}
+		arrayAccess = 0;
 		if (currentToken.type != ASSIGN) {
 			break;
 		}
@@ -870,9 +901,9 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		}
 		outFile << "M[";
 		if (scope > 1) {
-			outFile << "R[SP] + ";
+			outFile << "SP + ";
 		}
-		outFile << tokenToCompare.memoryLocation << "] = R[" << regNum-1 << "]" << endl;
+		outFile << tokenToCompare.memoryLocation << "] = R[" << regNum-1 << "];" << endl;
 		regNum = 0;
 		isParsed = true;
 		expectedToken = "Assignment Statement";
@@ -1074,7 +1105,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (!parse(currentToken, ARITHOP)) {
 			break;
 		}
-		outFile << "R[" << regNum << "] = R[" << regNum - 1 << "] " << operation << " R[" << reg1 - 1 << "]" << endl;
+		outFile << "R[" << regNum << "] = R[" << regNum - 1 << "] " << operation << " R[" << reg1 - 1 << "];" << endl;
 		regNum++;
 		currentToken = ScanOneToken();
 		if (!parse(currentToken, EXPRESSIONEXT)) {
@@ -1123,7 +1154,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (!parse(currentToken, RELATION)) {
 			break;
 		}
-		outFile << "R[" << regNum << "] = R[" << regNum - 1 << "] " << operation << " R[" << reg1 - 1 << "]" << endl;
+		outFile << "R[" << regNum << "] = R[" << regNum - 1 << "] " << operation << " R[" << reg1 - 1 << "];" << endl;
 		regNum++;
 		currentToken = ScanOneToken();
 		if (!parse(currentToken, ARITHOPEXT)) {
@@ -1195,7 +1226,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (!parse(currentToken, TERM)) {
 			break;
 		}
-		outFile << "R[" << regNum << "] = R[" << regNum - 1 << "] " << operation << " R[" << reg1-1<< "]" << endl;
+		outFile << "R[" << regNum << "] = R[" << regNum - 1 << "] " << operation << " R[" << reg1-1<< "];" << endl;
 		regNum++;
 		currentToken = ScanOneToken();
 		if (!parse(currentToken, RELATIONEXT)) {
@@ -1246,7 +1277,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (!parse(currentToken, FACTOR)) {
 			break;
 		}
-		outFile << "R[" << regNum << "] = R[" << regNum-1 << "] " << operation << " R[" << reg1 - 1 << "]" << endl;
+		outFile << "R[" << regNum << "] = R[" << regNum-1 << "] " << operation << " R[" << reg1 - 1 << "];" << endl;
 		regNum++;
 		currentToken = ScanOneToken();
 		if (!parse(currentToken, TERMEXT)) {
@@ -1281,6 +1312,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			}
 			tokenToReference = currentToken;
 			currentVariableType = currentToken.variableType;
+			arrayAccess = currentToken.arraySize;
 			currentToken = ScanOneToken();
 			if (parse(currentToken, PROCEDURE_CALL)) {
 				isParsed = true;
@@ -1290,9 +1322,9 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			else if (parse(currentToken, NAME)) {
 				outFile << "R[" << regNum << "] = M[";
 				if (scope > 1) {
-					outFile << "R[SP] + ";
+					outFile << "SP + ";
 				}
-				outFile << tokenToReference.memoryLocation << "]" << endl;
+				outFile << tokenToReference.memoryLocation << "];" << endl;
 				regNum++;
 				isParsed = true;
 				expectedToken = "Factor";
@@ -1301,8 +1333,11 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		}
 		else if (currentToken.type == MINUS) {
 			currentToken = ScanOneToken();
+			outFile << "R[" << regNum << "] = -";
 			if (currentToken.type == INTVAL | currentToken.type == FLOATVAL) {
 				currentVariableType = currentToken.type;
+				outFile << currentToken.name << ";" << endl;
+				regNum++;
 				isParsed = true;
 				expectedToken = "Factor";
 				break;
@@ -1315,6 +1350,13 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 					negationError(currentToken);
 				}
 				currentVariableType = currentToken.variableType;
+				outFile << "M[";
+				if (scope > 1) {
+					outFile << "SP + ";
+				}
+				outFile << currentToken.memoryLocation << "];" << endl;
+				regNum++;
+				arrayAccess = currentToken.arraySize;
 				parse(currentToken, NAME);
 				isParsed = true;
 				expectedToken = "Factor";
@@ -1327,6 +1369,8 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		}
 		else if (currentToken.type == INTVAL | currentToken.type == FLOATVAL) {
 			currentVariableType = currentToken.type;
+			outFile << "R[" << regNum << "] = " << currentToken.name << ";" << endl;
+			regNum++;
 			isParsed = true;
 			expectedToken = "Factor";
 			break;
@@ -1339,12 +1383,16 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		}
 		else if (currentToken.type == TRUE) {
 			currentVariableType = BOOLVAL;
+			outFile << "R[" << regNum << "] = " << "1" << ";" << endl;
+			regNum++;
 			isParsed = true;
 			expectedToken = "Factor";
 			break;
 		}
 		else if (currentToken.type == FALSE) {
 			currentVariableType = BOOLVAL;
+			outFile << "R[" << regNum << "] = " << "0" << ";" << endl;
+			regNum++;
 			isParsed = true;
 			expectedToken = "Factor";
 			break;
@@ -1359,6 +1407,12 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 				expectedToken = "Expression";
 				break;
 			}
+			if (currentVariableType != INTVAL) {
+				typeError(currentVariableType);
+			}
+			if (currentToken.type == INTVAL & std::stoi(currentToken.name) >= arrayAccess) {
+				boundsError();
+			}
 			currentToken = ScanOneToken();
 			if (currentToken.type != RBRACKET) {
 				expectedToken = "]";
@@ -1368,6 +1422,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		else {
 			UngetToken(currentToken.name);
 		}
+		arrayAccess = 0;
 		isParsed = true;
 		expectedToken = "Name";
 		break;
