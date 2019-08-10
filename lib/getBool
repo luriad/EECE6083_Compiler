@@ -1,0 +1,8 @@
+getbool:
+bool outBool;
+char readBool[6];
+fgets(readBool, 6, (FILE*)inFile);
+if(readBool == "true") outBool = true;
+else if (readBool == "false") outBool = false;
+M[SP] = outBool;
+goto returnAddr;

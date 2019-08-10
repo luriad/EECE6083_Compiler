@@ -1,0 +1,7 @@
+getfloat:
+float outFloat;
+char readFloat[255];
+fgets(readFloat, 255, (FILE*)inFile);
+outFloat = strtod(readFloat,NULL);
+M[SP] = outFloat;
+goto returnAddr;

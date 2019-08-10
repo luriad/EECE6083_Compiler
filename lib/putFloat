@@ -1,0 +1,5 @@
+putfloat:
+char outFl[255];
+out = fprintf(outFl, "%f", M[SP + 2]);
+fputs(outFl, outFile);
+goto returnAddr;

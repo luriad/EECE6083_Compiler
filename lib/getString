@@ -1,0 +1,10 @@
+getstring:
+char outStr[255];
+fgets(outStr, 255, (FILE*)inFile);
+int itr;
+while(outStr[itr] != '\0'){
+    M[SP+500+itr] = outStr[itr];
+    itr = itr + 1;
+    }
+M[SP] = SP+500;
+goto returnAddr;
