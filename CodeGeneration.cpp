@@ -13,7 +13,7 @@
 using namespace std;
 
 //File to compile
-FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\source.src", "r");
+FILE* file = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\testPgms\\correct\\math.src", "r");
 ofstream outFile;
 
 //Line number
@@ -67,6 +67,9 @@ token tokenToReference;
 list<tokenType> parameterTypeList;
 bool resyncFinish = false;
 int arrayAccess = 0;
+int returnNum = 0;
+int loopNum = 0;
+int argNum = 1;
 
 //Scanner Method
 token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
@@ -358,10 +361,11 @@ void UngetToken(string token) {
 	}
 }
 
-//Register and Memory Stacks
+//Register and Memory Stack
 int stackPointer;
 list<int> programStack;
 int regNum;
+int maxReg;
 
 void assignMem(string tokenName) {
 	if (scope != 0) {
@@ -370,29 +374,14 @@ void assignMem(string tokenName) {
 	else {
 		symbolTables.front()[tokenName].memoryLocation = stackPointer;
 	}
+	if (scope > 1) {
+		outFile << "// M[SP + " << stackPointer << "] allocated to " << tokenName << endl;
+	}
+	else {
+		outFile << "// M[" << stackPointer << "] allocated to " << tokenName << endl;
+	}
 	stackPointer += symbolTables.back()[tokenName].arraySize;
 }
-
-//int findReg() {
-//	int loc = 0;
-//	bool found = false;
-//	do {
-//		if (find(reg.begin(), reg.end(), loc) != reg.end()) {
-//			found = true;
-//		}
-//		else {
-//			loc++;
-//		}
-//	} while (!found);
-//	reg.push_back(loc);
-//	return loc;
-//}
-//
-//void clearReg(int regNum, int size) {
-//	for (int i = regNum; i < regNum + size; i++) {
-//		reg.erase(find(reg.begin(), reg.end(), regNum));
-//	}
-//}
 
 /*Errors*/
 
@@ -487,6 +476,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			expectedToken = ".";
 			break;
 		}
+		outFile << "return 0;" << endl;
 		isParsed = true;
 		expectedToken = "Program main";
 		symbolTables.pop_back();
@@ -523,6 +513,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			expectedToken = "begin";
 			break;
 		}
+		outFile << "programMain:" << endl;
 		currentToken = ScanOneToken();
 		while (currentToken.type != END & currentToken.type != ENDFILE) {
 			if (!parse(currentToken, STATEMENT)) {
@@ -580,6 +571,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (!parse(currentToken, PROCEDURE_BODY)) {
 			break;
 		}
+		outFile << endl;
 		isParsed = true;
 		expectedToken = "Procedure declaration";
 		tokenToReference = symbolTables.back()[procedureNames.back()];
@@ -610,8 +602,10 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		scope++;
 		symbolTables.push_back({ {currentToken.name, {currentToken}} });
 		outFile << currentToken.name << ":" << endl;
+		outFile << "// M[SP] contains return value" << endl;
+		outFile << "// M[SP + 1] contains return address" << endl;
 		programStack.push_back(stackPointer);
-		stackPointer = 0;
+		stackPointer = 2;
 		currentToken = ScanOneToken();
 		if (currentToken.type != COLON) {
 			expectedToken = ":";
@@ -860,6 +854,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (parameterTypeList.size() != 0) {
 			cout << "ERROR: Not enough arguments at line " << lineNumber << endl;
 		}
+		argNum = 1;
 		currentVariableType = typeToCompare;
 		isParsed = true;
 		expectedToken = "Procedure call";
@@ -938,29 +933,8 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		isParsed = true;
 		expectedToken = "Assignment Statement";
 		break;
-
-		//DESTINATION
-	/*case DESTINATION:
-		if (currentToken.type == LBRACKET) {
-			currentToken = ScanOneToken();
-			if (!parse(currentToken, EXPRESSION)) {
-				break;
-			}
-			if (currentVariableType != INTVAL) {
-				typeError(currentVariableType);
-			}
-			currentToken = ScanOneToken();
-			if (currentToken.type != RBRACKET) {
-				expectedToken = "]";
-				break;
-			}
-		}
-		else {
-			UngetToken(currentToken.name);
-		}
-		isParsed = true;
-		expectedToken = "Destination";
-		break;*/
+		
+		//'DESTINATION' PARSE is equivalent to 'NAME' PARSE
 
 		//IF PARSE
 	case IF_STATEMENT:
@@ -984,6 +958,8 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			expectedToken = "')'";
 			break;
 		}
+		outFile << "if(R[" << regNum -1 << "] == false) goto exitIf" << loopNum << ";" << endl;
+		regNum = 0;
 		currentToken = ScanOneToken();
 		if (currentToken.type != THEN) {
 			expectedToken = "then";
@@ -1014,6 +990,8 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			expectedToken = "if";
 			break;
 		}
+		outFile << "exitIf" << loopNum << ":" << endl;
+		loopNum++;
 		isParsed = true;
 		expectedToken = "If statement";
 		break;
@@ -1041,6 +1019,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (!parse(currentToken, ASSIGNMENT_STATEMENT)) {
 			break;
 		}
+		outFile << "loop" << loopNum << ":" << endl;
 		currentToken = ScanOneToken();
 		if (currentToken.type != SEMICOLON) {
 			expectedToken = ";";
@@ -1053,6 +1032,8 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (currentVariableType != BOOLVAL) {
 			typeError(currentVariableType);
 		}
+		outFile << "if(R[" << regNum - 1 << "] == false) goto exitLoop" << loopNum << ";" << endl;
+		regNum = 0;
 		currentToken = ScanOneToken();
 		if (currentToken.type != RPAREN) {
 			expectedToken = ")";
@@ -1074,6 +1055,9 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			expectedToken = "for";
 			break;
 		}
+		outFile << "goto loop" << loopNum << ";" << endl;
+		outFile << "exitLoop" << loopNum << ":" << endl;
+		loopNum++;
 		isParsed = true;
 		expectedToken = "Loop statement";
 		break;
@@ -1090,6 +1074,9 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		if (currentVariableType != symbolTables.back()[procedureNames.back()].procedureOutType) {
 			typeError(currentVariableType);
 		}
+		outFile << "M[SP] = R[" << regNum - 1 << "]; //Write return value" << endl;
+		outFile << "goto returnAddr;" << endl;
+		regNum = 0;
 		isParsed = true;
 		expectedToken = "Return statement";
 		break;
@@ -1357,10 +1344,21 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 				ScopeDeclarationError(currentToken.name);
 			}
 			tokenToReference = currentToken;
+			tokenToCompare = currentToken;
 			currentVariableType = currentToken.variableType;
 			arrayAccess = currentToken.arraySize;
 			currentToken = ScanOneToken();
 			if (parse(currentToken, PROCEDURE_CALL)) {
+				regNum = 0;
+				outFile << "//Call procedure " << tokenToCompare.name << endl;
+				outFile << "SP = SP + " << stackPointer << ";" << endl;
+				outFile << "M[SP + 1] = "<< returnNum <<"; //Write return address" << endl;
+				outFile << "goto " << tokenToCompare.name << ";" << endl;
+				outFile << "return" << returnNum << ":" << endl;
+				returnNum++;
+				outFile << "R[" << regNum << "] = M[SP]; //Read return value" << endl;
+				outFile << "SP = SP - " << stackPointer << endl;
+				regNum++;
 				isParsed = true;
 				expectedToken = "Factor";
 				break;
@@ -1527,6 +1525,8 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			!(parameterTypeList.front() == BOOLVAL & currentVariableType == INTVAL) & !(parameterTypeList.front() == INTVAL & currentVariableType == BOOLVAL)) {
 			typeError(currentVariableType);
 		}
+		outFile << "M[" << stackPointer + argNum + 1 << "] = R[" << regNum - 1 << "]; //Write argument " << argNum << endl;
+		argNum++;
 		parameterTypeList.pop_front();
 		nextToken = ScanOneToken();
 		if (nextToken.type == COMMA) {
@@ -1573,14 +1573,24 @@ int main(/*int argc, char* argv[]*/)
 	//Generate main method
 	outFile.open("CodeGen.c");
 	outFile << "int main() {" << endl;
+	outFile << "float M[32000000]; //Main Memory" << endl;
+	outFile << "float R[32000000]; //General Purpose Registers" << endl;
+	outFile << "int SP = 0; //Stack Pointer Register" << endl;
+	outFile << "goto programMain;" << endl;
 
 	//Parse program
 	//cout << "At line " << lineNumber << endl;
 	currentToken = ScanOneToken();
 	parse(currentToken, PROGRAM_MAIN);
 
-
 	//cout << "**End of program**" << endl;
+	outFile << endl << "returnAddr:" << endl;
+	outFile << "R[0] = M[SP + 1]; //Read return address" << endl;
+	for (int i = 0; i < returnNum; i++) {
+		outFile << "R[1] = " << i << endl;
+		outFile << "R[2] = R[1] == R[0]" << endl;
+		outFile << "if(R[2] == true) goto return" << i << ";" << endl;
+	}
 
 	outFile << "}" << endl;
 	outFile.close();
