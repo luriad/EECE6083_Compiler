@@ -36,6 +36,7 @@ struct token {
 	int arraySize = 1;
 	list<tokenType> parameterTypes;
 	int memoryLocation;
+	int timesCalled;
 };
 
 //Symbol table type is unordered_map, which stores values as a hash table. Here, the key is the token name (string), and the value stored is the token itself
@@ -288,11 +289,13 @@ token ScanOneToken(bool declaration = false, tokenType variableType = UNKNOWN)
 		//Check if token is in global symbol table
 		if (symbolTables.front().find(outToken.name) != symbolTables.front().end())
 		{
-		outToken = symbolTables.front()[outToken.name];
+			symbolTables.front()[outToken.name].timesCalled++;
+			outToken = symbolTables.front()[outToken.name];
 		}
 		//If not local, check if token is in global symbol table
 		else if (symbolTables.back().find(outToken.name) != symbolTables.back().end())
 		{
+			symbolTables.back()[outToken.name].timesCalled++;
 			outToken = symbolTables.back()[outToken.name];
 		}
 		//If not in either symbol table, give it the identifier type
@@ -1583,26 +1586,118 @@ int main(/*int argc, char* argv[]*/)
 	token currentToken = { BEGIN, "test" };
 	//Generate main method
 	outFile.open("CodeGen.c");
+	outFile << "#include <stdio.h>" << endl;
+	outFile << "#include <math.h>" << endl << endl;
 	outFile << "int main() {" << endl;
-	outFile << "float M[32000000]; //Main Memory" << endl;
-	outFile << "float R[32000000]; //General Purpose Registers" << endl;
-	outFile << "int SP = 0; //Stack Pointer Register" << endl;
+	outFile << "float M[32000000];" << endl; //Main Memory" << endl;
+	outFile << "float R[32000000];" << endl; //General Purpose Registers" << endl;
+	outFile << "int SP = 0;" << endl; //Stack Pointer Register" << endl;
 	outFile << "goto programMain;" << endl;
 
 	//Parse program
-	cout << "At line " << lineNumber << endl;
+	//cout << "At line " << lineNumber << endl;
 	currentToken = ScanOneToken();
 	parse(currentToken, PROGRAM_MAIN);
 
-	cout << "**End of program**" << endl;
+	//cout << "**End of program**" << endl;
 	outFile << endl << "returnAddr:" << endl;
-	outFile << "R[0] = M[SP + 1]; //Read return address" << endl;
+	outFile << "R[0] = M[SP + 1];" << endl; //Read return address" << endl;
 	for (int i = 0; i < returnNum; i++) {
 		outFile << "R[1] = " << i << endl;
 		outFile << "R[2] = R[1] == R[0]" << endl;
 		outFile << "if(R[2] == true) goto return" << i << ";" << endl;
 	}
 
+	if (symbolTables.back()["getbool"].timesCalled > 0) {
+		FILE* getboolFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\CODE REPOSITORY\\lib\\getBool.c", "r");
+		char buff[200];
+		string program;
+		for (int i = 0; i < 10; i++) {
+			fgets(buff, 200, (FILE*)getboolFile);
+			program.append(buff);
+		}
+		outFile << endl << program << endl;
+	}
+	if (symbolTables.back()["getfloat"].timesCalled > 0) {
+		FILE* getboolFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\CODE REPOSITORY\\lib\\getFloat.c", "r");
+		char buff[200];
+		string program;
+		for (int i = 0; i < 10; i++) {
+			fgets(buff, 200, (FILE*)getboolFile);
+			program.append(buff);
+		}
+		outFile << endl << program << endl;
+	}
+	if (symbolTables.back()["getstring"].timesCalled > 0) {
+		FILE* getboolFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\CODE REPOSITORY\\lib\\getstring.c", "r");
+		char buff[200];
+		string program;
+		for (int i = 0; i < 7; i++) {
+			fgets(buff, 200, (FILE*)getboolFile);
+			program.append(buff);
+		}
+		outFile << endl << program << endl;
+	}
+	if (symbolTables.back()["getinteger"].timesCalled > 0) {
+		FILE* getboolFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\CODE REPOSITORY\\lib\\getinteger.c", "r");
+		char buff[200];
+		string program;
+		for (int i = 0; i < 9; i++) {
+			fgets(buff, 200, (FILE*)getboolFile);
+			program.append(buff);
+		}
+		outFile << endl << program << endl;
+	}
+	if (symbolTables.back()["putbool"].timesCalled > 0) {
+		FILE* getboolFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\CODE REPOSITORY\\lib\\putBool.c", "r");
+		char buff[200];
+		string program;
+		for (int i = 0; i < 8; i++) {
+			fgets(buff, 200, (FILE*)getboolFile);
+			program.append(buff);
+		}
+		outFile << endl << program << endl;
+	}
+	if (symbolTables.back()["putfloat"].timesCalled > 0) {
+		FILE* getboolFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\CODE REPOSITORY\\lib\\putFloat.c", "r");
+		char buff[200];
+		string program;
+		for (int i = 0; i < 7; i++) {
+			fgets(buff, 200, (FILE*)getboolFile);
+			program.append(buff);
+		}
+		outFile << endl << program << endl;
+	}
+	if (symbolTables.back()["putstring"].timesCalled > 0) {
+		FILE* getboolFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\CODE REPOSITORY\\lib\\putstring.c", "r");
+		char buff[200];
+		string program;
+		for (int i = 0; i < 14; i++) {
+			fgets(buff, 200, (FILE*)getboolFile);
+			program.append(buff);
+		}
+		outFile << endl << program << endl;
+	}
+	if (symbolTables.back()["putinteger"].timesCalled > 0) {
+		FILE* getboolFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\CODE REPOSITORY\\lib\\putinteger.c", "r");
+		char buff[200];
+		string program;
+		for (int i = 0; i < 7; i++) {
+			fgets(buff, 200, (FILE*)getboolFile);
+			program.append(buff);
+		}
+		outFile << endl << program << endl;
+	}
+	if (symbolTables.back()["sqrt"].timesCalled > 0) {
+		FILE* getboolFile = fopen("F:\\Users\\David\\Luria_EECE6083_CompilerProject\\CODE REPOSITORY\\lib\\sqrt.c", "r");
+		char buff[200];
+		string program;
+		for (int i = 0; i < 3; i++) {
+			fgets(buff, 200, (FILE*)getboolFile);
+			program.append(buff);
+		}
+		outFile << endl << program << endl;
+	}
 	outFile << "}" << endl;
 	outFile.close();
 
