@@ -1,6 +1,6 @@
 putbool:
-char outB[5];
-if(M[SP + 2] == true) outB = "true";
-else if(M[SP + 2] == false) outB = "false";
+{;}char outB[5];
+if(M[SP + 2] == 1) outB = "true";
+else if(M[SP + 2] == 0) outB = "false";
 fputs(outB, outFile);
 goto returnAddr;

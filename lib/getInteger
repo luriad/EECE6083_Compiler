@@ -1,6 +1,6 @@
 getinteger:
-int outInt;
-char readInt[255];
+{;}int outInt;
+{;}char readInt[255];
 fgets(readInt, 255, (FILE*)inFile);
 outInt = strtol(readInt,NULL,10);
 M[SP] = outInt;

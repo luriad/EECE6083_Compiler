@@ -1,5 +1,5 @@
 putinteger:
-char outIntStr[255];
+{;}char outIntStr[255];
 sprintf(outIntStr, "%d", M[SP + 2]);
 fputs(outIntStr, outFile);
 goto returnAddr;

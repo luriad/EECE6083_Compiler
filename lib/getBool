@@ -1,8 +1,10 @@
 getbool:
-bool outBool;
-char readBool[6];
-fgets(readBool, 6, (FILE*)inFile);
-if(readBool == "true") outBool = true;
-else if (readBool == "false") outBool = false;
+{;}int outBool;
+{;}char instr[6];
+{;}char readBool;
+fgets(instr, 6, (FILE*)inFile);
+readBool = instr[0];
+if(readBool == 't' | readBool == 'T' | readBool == 1) outBool = 1;
+else outBool = 0;
 M[SP] = outBool;
 goto returnAddr;

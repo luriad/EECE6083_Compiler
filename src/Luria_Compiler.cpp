@@ -663,6 +663,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			expectedToken = "procedure";
 			break;
 		}
+        outFile << "goto returnAddr;" << endl;
 		isParsed = true;
 		expectedToken = "Procedure body";
 		break;
@@ -884,8 +885,8 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			!(typeToCompare == BOOLVAL & currentVariableType == INTVAL) & !(typeToCompare == INTVAL & currentVariableType == BOOLVAL)) {
 			typeError(currentVariableType);
 		}
-		if (currentVariableType == STRINGVAL & currentToken.type == IDENTIFIER) {
-			if (scope != 0) {
+		if (currentVariableType == STRINGVAL & currentToken.type == IDENTIFIER & currentToken.variableType == STRINGVAL) {
+			if (symbolTables.back().find(tokenToCompare.name) != symbolTables.back().end()) {
 				symbolTables.back()[tokenToCompare.name].arraySize = currentToken.arraySize;
 			}
 			else {
@@ -894,7 +895,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			regNum -= currentToken.arraySize - 1;
 		}
 		else if (currentVariableType == STRINGVAL & currentToken.type != IDENTIFIER) {
-			if (scope != 0) {
+			if (symbolTables.back().find(tokenToCompare.name) != symbolTables.back().end()) {
 				symbolTables.back()[tokenToCompare.name].arraySize = currentToken.name.size() - 1;
 			}
 			else {
@@ -1248,10 +1249,10 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 			if (currentToken.type != IDENTIFIER) {
 				currentToken.arraySize = currentToken.name.size() - 1;
 			}
-			outFile << "R[" << regNum << "] = R[" << reg1 - currentToken.arraySize + 1 << "] == R[" << reg1 + 1 << "];" << endl;
+			outFile << "R[" << regNum << "] = R[" << reg1 - currentToken.arraySize + 2 << "] == R[" << reg1 + 1 << "];" << endl;
 			regNum++;
 			for (int i = 2; i < currentToken.arraySize; i++) {
-				outFile << "R[" << regNum << "] = R[" << reg1 - currentToken.arraySize + i << "] == R[" << reg1 + i << "];" << endl;
+				outFile << "R[" << regNum << "] = R[" << reg1 - currentToken.arraySize + i + 1 << "] == R[" << reg1 + i << "];" << endl;
 				regNum++;
 				outFile << "R[" << regNum << "] = R[" << regNum - 1 << "] & R[" << regNum - 2 << "];" << endl;
 				regNum++;
@@ -1386,7 +1387,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 						outFile << "R[" << regNum << "] = R[" << regNum - 1 << "] + SP;" << endl;
 						regNum++;
 					}
-					for (int i = 0; i < tokenToReference.arraySize - 1; i++) {
+					for (int i = 0; i < tokenToReference.arraySize; i++) {
 						outFile << "R[" << regNum + i << "] = M[R[" << regNum - 1 << "] + " << i << "];" << endl;
 					}
 					regNum = regNum + tokenToReference.arraySize - 1;
@@ -1454,7 +1455,7 @@ bool parse(token currentToken, nonTerminal nonTerminal) {
 		}
 		else if (currentToken.type == STRINGVAL) {
 			currentVariableType = STRINGVAL;
-			outFile << "R[" << regNum << "] = '\\0';" << endl;
+			//outFile << "R[" << regNum << "] = '\\0';" << endl;
 			regNum++;
 			for (std::string::size_type i = 1; i < currentToken.name.size()-1; i++) {
 				outFile << "R[" << regNum << "] = '" << currentToken.name[i] << "';" << endl;
@@ -1577,15 +1578,15 @@ int main(int argc, char* argv[])
 	symbolTables.push_back(globalSymbolTable);
 	token currentToken = { BEGIN, "test" };
 	//Generate main method
-	outFile.open("../output/CodeGen.c");
+	outFile.open("./CodeGen.c");
 	outFile << "#include <stdio.h>" << endl;
 	outFile << "#include <math.h>" << endl << endl;
+	outFile << "int main() {" << endl;
     outFile << "FILE* inFile = fopen(\"./input.txt\",\"r\");" << endl;;
     outFile << "FILE* outFile = fopen(\"./output.txt\",\"w\");" << endl << endl;
-	outFile << "int main() {" << endl;
 	outFile << "int M[32000];" << endl; //Main Memory" << endl;
 	outFile << "int R[32000];" << endl; //General Purpose Registers" << endl;
-    outFile << "int IR[32000];" << endl;
+    outFile << "int IR[32000];" << endl; //Index Registers" << endl;
 	outFile << "int SP = 0;" << endl; //Stack Pointer Register" << endl;
 	outFile << "goto programMain;" << endl;
 
@@ -1607,7 +1608,7 @@ int main(int argc, char* argv[])
 		file = fopen("../lib/getBool", "r");
 		char buff[200];
 		string program;
-		for (int i = 0; i < 8; i++) {
+		for (int i = 0; i < 10; i++) {
 			fgets(buff, 200, (FILE*)file);
 			program.append(buff);
 		}
