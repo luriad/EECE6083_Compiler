@@ -12,7 +12,7 @@ Updated: 8/10/2019
 * You will find two versions of the compiler: standard and verbose. The standard binary will create CodeGen.c, which is the IR of the compiled program in reduced C form. It will print any errors detected to the console. Verbose does the same, except it also prints the state of the parser throughout the compiling proccess. It also produces a commented CodeGen.c to give more information on the code generated.
 * Generated code is in reduced assembly-like C
 * /lib contains standard I/O library functions, like putInteger() and getString(). These are statically linked into the IR C program.
-* Use input.txt to pass inputs into functions, and read outputs from output.txt
+* Use input.txt to pass inputs into programs, and read outputs from output.txt
 
 **Description:**
 This compiler project was build in c++ using a one-pass process. The scanner is a method that simply looks through the input code and produce
